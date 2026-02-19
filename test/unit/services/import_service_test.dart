@@ -262,5 +262,100 @@ void main() {
         throwsA(isA<FormatException>()),
       );
     });
+
+    test('解析包含样式的 JSON', () {
+      final json = jsonEncode({
+        'version': 2,
+        'events': [],
+        'categories': [],
+        'styles': [
+          {
+            'style_name': '自定义样式',
+            'style_type': 'simple',
+            'background_color': 0xFFFFFFFF,
+            'text_color': 0xFF000000,
+            'number_color': 0xFF333333,
+          },
+        ],
+      });
+
+      final result = service.parseAndValidate(json, []);
+      expect(result.styles.length, 1);
+      expect(result.styles.first.styleName, '自定义样式');
+    });
+
+    test('无 styles 字段时样式列表为空', () {
+      final json = jsonEncode({
+        'events': [],
+        'categories': [],
+      });
+
+      final result = service.parseAndValidate(json, []);
+      expect(result.styles, isEmpty);
+    });
+
+    test('事件保留 category_name 和 style_name 映射', () {
+      final json = jsonEncode({
+        'version': 2,
+        'events': [
+          {
+            'name': '带分类事件',
+            'target_date': '2026-06-01T00:00:00.000',
+            'calendar_type': 'solar',
+            'category_name': '生日',
+            'style_name': '浅粉',
+            'created_at': '2026-01-01T00:00:00.000',
+            'updated_at': '2026-01-01T00:00:00.000',
+          },
+        ],
+        'categories': [],
+      });
+
+      final result = service.parseAndValidate(json, []);
+      expect(result.events.length, 1);
+      expect(result.eventNameMappings.length, 1);
+      expect(result.eventNameMappings.first.categoryName, '生日');
+      expect(result.eventNameMappings.first.styleName, '浅粉');
+    });
+
+    test('重复事件不计入 eventNameMappings', () {
+      final existing = [
+        Event(
+          id: 1,
+          name: '重复',
+          targetDate: DateTime(2026, 3, 15),
+          calendarType: 'solar',
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ];
+
+      final json = jsonEncode({
+        'events': [
+          {
+            'name': '重复',
+            'target_date': '2026-03-15T00:00:00.000',
+            'calendar_type': 'solar',
+            'category_name': '生日',
+            'created_at': '2026-01-01T00:00:00.000',
+            'updated_at': '2026-01-01T00:00:00.000',
+          },
+          {
+            'name': '新事件',
+            'target_date': '2026-06-01T00:00:00.000',
+            'calendar_type': 'solar',
+            'style_name': '淡紫',
+            'created_at': '2026-01-01T00:00:00.000',
+            'updated_at': '2026-01-01T00:00:00.000',
+          },
+        ],
+        'categories': [],
+      });
+
+      final result = service.parseAndValidate(json, existing);
+      expect(result.events.length, 1);
+      expect(result.eventNameMappings.length, 1);
+      expect(result.eventNameMappings.first.styleName, '淡紫');
+    });
   });
 }

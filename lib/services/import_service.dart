@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../models/card_style.dart';
 import '../models/category.dart';
 import '../models/event.dart';
 
@@ -24,15 +25,28 @@ class DuplicateEvent {
   const DuplicateEvent({required this.incoming, required this.existing});
 }
 
+/// 记录事件导出时关联的分类名和样式名
+class EventNameMapping {
+  final String? categoryName;
+  final String? styleName;
+
+  const EventNameMapping({this.categoryName, this.styleName});
+}
+
 class ImportData {
   final List<Event> events;
   final List<EventCategory> categories;
+  final List<CardStyle> styles;
   final List<DuplicateEvent> duplicates;
+  /// 与 events 列表一一对应的名称映射
+  final List<EventNameMapping> eventNameMappings;
 
   const ImportData({
     required this.events,
     required this.categories,
+    required this.styles,
     required this.duplicates,
+    required this.eventNameMappings,
   });
 }
 
@@ -65,6 +79,7 @@ class ImportService {
 
     final now = DateTime.now();
     final events = <Event>[];
+    final nameMappings = <EventNameMapping>[];
     final errors = <String>[];
 
     for (var i = 0; i < eventsJson.length; i++) {
@@ -101,6 +116,11 @@ class ImportService {
           reminderMinute: map['reminder_minute'] as int?,
         );
         events.add(event);
+        // 记录导出时的分类名和样式名，导入时按名称重建关联
+        nameMappings.add(EventNameMapping(
+          categoryName: map['category_name'] as String?,
+          styleName: map['style_name'] as String?,
+        ));
       } catch (e) {
         errors.add('事件 #${i + 1}: 解析失败 ($e)');
       }
@@ -125,23 +145,44 @@ class ImportService {
       }
     }
 
+    // Parse styles
+    final styles = <CardStyle>[];
+    final stylesJson = decoded['styles'];
+    if (stylesJson is List) {
+      for (var i = 0; i < stylesJson.length; i++) {
+        try {
+          final map = stylesJson[i] as Map<String, dynamic>;
+          if (map['style_name'] != null) {
+            styles.add(CardStyle.fromJson(map));
+          }
+        } catch (_) {
+          // Skip invalid styles silently
+        }
+      }
+    }
+
     // Detect duplicates by name + targetDate
     final duplicates = <DuplicateEvent>[];
     final newEvents = <Event>[];
+    final newEventMappings = <EventNameMapping>[];
 
-    for (final event in events) {
+    for (var i = 0; i < events.length; i++) {
+      final event = events[i];
       final match = _findDuplicate(event, existingEvents);
       if (match != null) {
         duplicates.add(DuplicateEvent(incoming: event, existing: match));
       } else {
         newEvents.add(event);
+        newEventMappings.add(nameMappings[i]);
       }
     }
 
     return ImportData(
       events: newEvents,
       categories: categories,
+      styles: styles,
       duplicates: duplicates,
+      eventNameMappings: newEventMappings,
     );
   }
 

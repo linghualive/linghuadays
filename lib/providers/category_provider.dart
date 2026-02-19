@@ -16,10 +16,11 @@ class CategoriesNotifier extends AsyncNotifier<List<EventCategory>> {
     return repo.getAll();
   }
 
-  Future<void> addCategory(EventCategory category) async {
+  Future<int> addCategory(EventCategory category) async {
     final repo = ref.read(categoryRepositoryProvider);
-    await repo.insert(category);
+    final id = await repo.insert(category);
     ref.invalidateSelf();
+    return id;
   }
 
   Future<void> updateCategory(EventCategory category) async {

@@ -8,8 +8,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/event.dart';
 import '../providers/category_provider.dart';
 import '../providers/event_provider.dart';
+import '../providers/style_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/import_service.dart';
 import '../services/update_service.dart';
@@ -290,14 +292,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final events = await ref.read(eventsProvider.future);
       final categories = await ref.read(categoriesProvider.future);
+      final styles = await ref.read(stylesProvider.future);
+
+      // 构建 ID → 名称映射，用于事件关联
+      final catMap = {for (final c in categories) c.id: c.name};
+      final styleMap = {for (final s in styles) s.id: s.styleName};
 
       final data = {
-        'version': 1,
+        'version': 2,
         'exportDate': DateTime.now().toIso8601String(),
-        'events': events.map((e) => e.toJson()).toList(),
+        'events': events.map((e) {
+          final json = e.toJson();
+          // 附带分类名和样式名，导入时按名称匹配
+          json['category_name'] = catMap[e.categoryId];
+          json['style_name'] = styleMap[e.styleId];
+          return json;
+        }).toList(),
         'categories': categories
             .where((c) => !c.isPreset)
             .map((c) => c.toJson())
+            .toList(),
+        'styles': styles
+            .where((s) => !s.isPreset)
+            .map((s) => s.toJson())
             .toList(),
       };
 
@@ -346,18 +363,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       // Import non-duplicate categories
       final existingCats = await ref.read(categoriesProvider.future);
-      final existingCatNames = existingCats.map((c) => c.name).toSet();
+      final catNameToId = <String, int>{};
+      for (final c in existingCats) {
+        if (c.id != null) catNameToId[c.name] = c.id!;
+      }
       var importedCats = 0;
       for (final cat in importData.categories) {
-        if (!existingCatNames.contains(cat.name)) {
-          await ref.read(categoriesProvider.notifier).addCategory(cat);
+        if (!catNameToId.containsKey(cat.name)) {
+          final id =
+              await ref.read(categoriesProvider.notifier).addCategory(cat);
+          catNameToId[cat.name] = id;
           importedCats++;
         }
       }
 
-      // Import non-duplicate events
-      for (final event in importData.events) {
-        await ref.read(eventsProvider.notifier).addEvent(event);
+      // Import non-duplicate styles
+      final existingStyles = await ref.read(stylesProvider.future);
+      final styleNameToId = <String, int>{};
+      for (final s in existingStyles) {
+        if (s.id != null) styleNameToId[s.styleName] = s.id!;
+      }
+      var importedStyles = 0;
+      for (final style in importData.styles) {
+        if (!styleNameToId.containsKey(style.styleName)) {
+          final id =
+              await ref.read(stylesProvider.notifier).addStyle(style);
+          styleNameToId[style.styleName] = id;
+          importedStyles++;
+        }
+      }
+
+      // Import non-duplicate events (remap categoryId/styleId by name)
+      for (var i = 0; i < importData.events.length; i++) {
+        final event = importData.events[i];
+        final mapping = importData.eventNameMappings[i];
+        final remapped = _remapEvent(
+          event,
+          mapping,
+          catNameToId,
+          styleNameToId,
+        );
+        await ref.read(eventsProvider.notifier).addEvent(remapped);
       }
 
       // Handle duplicates: ask user
@@ -373,12 +419,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       final total = importData.events.length + overwritten;
       final skipped = importData.duplicates.length - overwritten;
+      final extras = <String>[];
+      if (skipped > 0) extras.add('$skipped 个跳过');
+      if (importedCats > 0) extras.add('$importedCats 个分类');
+      if (importedStyles > 0) extras.add('$importedStyles 个样式');
       messenger.showSnackBar(
         SnackBar(
           content: Text(
             '导入完成：$total 个事件导入'
-            '${skipped > 0 ? '，$skipped 个跳过' : ''}'
-            '${importedCats > 0 ? '，$importedCats 个分类' : ''}',
+            '${extras.isNotEmpty ? '，${extras.join("，")}' : ''}',
           ),
         ),
       );
@@ -395,6 +444,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       }
     }
+  }
+
+  Event _remapEvent(
+    Event event,
+    EventNameMapping mapping,
+    Map<String, int> catNameToId,
+    Map<String, int> styleNameToId,
+  ) {
+    // 按导出时记录的名称在目标数据库中查找对应 ID
+    final newCategoryId =
+        mapping.categoryName != null
+            ? catNameToId[mapping.categoryName]
+            : null;
+    final newStyleId =
+        mapping.styleName != null
+            ? styleNameToId[mapping.styleName]
+            : null;
+
+    return event.copyWith(
+      categoryId: () => newCategoryId,
+      styleId: () => newStyleId,
+    );
   }
 
   Future<int?> _showDuplicateDialog(
