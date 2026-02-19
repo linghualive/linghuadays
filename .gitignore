@@ -1,6 +1,10 @@
 # Project dev rules (local only)
 CLAUDE.md
 
+# Markdown docs (except README)
+*.md
+!README.md
+
 # Miscellaneous
 *.class
 *.log
