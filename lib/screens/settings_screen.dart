@@ -303,18 +303,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       final jsonStr = const JsonEncoder.withIndent('  ').convert(data);
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/daysmater_export.json');
+      final fileName =
+          'daysmater_export_${DateTime.now().millisecondsSinceEpoch}.json';
+      final file = File('${dir.path}/$fileName');
       await file.writeAsString(jsonStr);
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '已导出 ${events.length} 个倒数日到 ${file.path}',
-            ),
-          ),
-        );
-      }
+      if (!context.mounted) return;
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: '玲华倒数 数据导出',
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
