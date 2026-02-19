@@ -100,16 +100,6 @@ void main() {
       expect(find.byIcon(Icons.push_pin), findsNothing);
     });
 
-    testWidgets('选中状态显示勾选图标', (tester) async {
-      await tester.pumpWidget(wrapWithMaterial(
-        EventCard(
-          event: createEvent(),
-          isSelected: true,
-        ),
-      ));
-      expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    });
-
     testWidgets('网格卡片显示标题栏文字', (tester) async {
       final futureDate = DateTime.now().add(const Duration(days: 10));
       await tester.pumpWidget(wrapWithMaterial(

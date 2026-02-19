@@ -62,6 +62,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   final _cardKey = GlobalKey();
   int? _selectedStyleId;
   int _selectedFontIndex = 0;
+  int _displayMode = 0; // 0=天, 1=年月天, 2=月天, 3=周天
 
   @override
   void initState() {
@@ -218,7 +219,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             color: headerColor,
             child: Text(
-              '${widget.event.name}${days >= 0 ? "还有" : "已过"}',
+              days >= 0
+                  ? '距离${widget.event.name}还有'
+                  : '${widget.event.name}已经',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: _contrastTextColor(headerColor),
                 fontWeight: FontWeight.w600,
@@ -236,10 +239,19 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 大号天数
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 36),
-                    child: Text('${days.abs()}', style: numberStyle),
+                  // 大号天数（点击切换显示模式）
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _displayMode = (_displayMode + 1) % 4;
+                      });
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36),
+                      child: _buildDaysDisplay(
+                        days, effectiveDate, numberStyle, font, style,
+                      ),
+                    ),
                   ),
                   // 虚线分隔
                   Padding(
@@ -251,11 +263,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       ),
                     ),
                   ),
-                  // 目标日期
+                  // 目标/起始日期
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     child: Text(
-                      '目标日: ${_formatTargetDate(effectiveDate)}',
+                      '${widget.event.isRepeating ? "目标日" : "起始日"}: ${_formatTargetDate(effectiveDate)}',
                       style: theme.textTheme.bodyMedium?.copyWith(color: dateColor),
                     ),
                   ),
@@ -266,6 +278,97 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildDaysDisplay(
+    int days,
+    DateTime effectiveDate,
+    TextStyle numberStyle,
+    FontPreset font,
+    CardStyle style,
+  ) {
+    final calcService = DateCalculationService();
+    final today = DateTime.now();
+    final unitStyle = font.apply(
+      TextStyle(
+        fontSize: 28,
+        fontWeight: FontWeight.w500,
+        color: Color(style.numberColor).withAlpha(180),
+      ),
+    );
+    final multiNumberStyle = font.apply(
+      TextStyle(
+        fontSize: 56,
+        fontWeight: FontWeight.bold,
+        height: 1,
+        color: Color(style.numberColor),
+      ),
+    );
+
+    switch (_displayMode) {
+      case 0:
+        // 默认：天数
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('${days.abs()}', style: numberStyle),
+            const SizedBox(width: 4),
+            Text('天', style: unitStyle.copyWith(fontSize: 32)),
+          ],
+        );
+      case 1:
+        // 年月天
+        final result = calcService.yearsMonthsDaysBetween(today, effectiveDate);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('${result.years}', style: multiNumberStyle),
+            Text('年', style: unitStyle),
+            const SizedBox(width: 8),
+            Text('${result.months}', style: multiNumberStyle),
+            Text('月', style: unitStyle),
+            const SizedBox(width: 8),
+            Text('${result.days}', style: multiNumberStyle),
+            Text('天', style: unitStyle),
+          ],
+        );
+      case 2:
+        // 月天
+        final result = calcService.monthsDaysBetween(today, effectiveDate);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('${result.months}', style: multiNumberStyle),
+            Text('月', style: unitStyle),
+            const SizedBox(width: 12),
+            Text('${result.days}', style: multiNumberStyle),
+            Text('天', style: unitStyle),
+          ],
+        );
+      case 3:
+        // 周天
+        final result = calcService.weeksDaysBetween(days);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('${result.weeks}', style: multiNumberStyle),
+            Text('周', style: unitStyle),
+            const SizedBox(width: 12),
+            Text('${result.days}', style: multiNumberStyle),
+            Text('天', style: unitStyle),
+          ],
+        );
+      default:
+        return Text('${days.abs()}', style: numberStyle);
+    }
   }
 
   Widget _buildImageBackground(CardStyle style) {

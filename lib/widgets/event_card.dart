@@ -16,7 +16,6 @@ class EventCard extends StatelessWidget {
   final EventCategory? category;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
-  final bool isSelected;
   final bool isGridCard;
 
   const EventCard({
@@ -26,7 +25,6 @@ class EventCard extends StatelessWidget {
     this.category,
     this.onTap,
     this.onLongPress,
-    this.isSelected = false,
     this.isGridCard = false,
   });
 
@@ -56,15 +54,6 @@ class EventCard extends StatelessWidget {
                   ? _buildGridLayout(days, effectiveStyle, theme)
                   : _buildListLayout(days, effectiveStyle, theme),
             ),
-            if (isSelected)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Icon(
-                  Icons.check_circle,
-                  color: theme.colorScheme.primary,
-                ),
-              ),
             if (event.isPinned && !isGridCard)
               Positioned(
                 top: 8,

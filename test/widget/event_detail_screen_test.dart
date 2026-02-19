@@ -44,7 +44,7 @@ void main() {
       await tester.pumpWidget(wrapWithMaterial(
         EventDetailScreen(event: event),
       ));
-      expect(find.text('妈妈生日还有'), findsOneWidget);
+      expect(find.text('距离妈妈生日还有'), findsOneWidget);
     });
 
     testWidgets('过去事件显示已过', (tester) async {
@@ -55,7 +55,7 @@ void main() {
       await tester.pumpWidget(wrapWithMaterial(
         EventDetailScreen(event: event),
       ));
-      expect(find.text('过去事件已过'), findsOneWidget);
+      expect(find.text('过去事件已经'), findsOneWidget);
     });
 
     testWidgets('显示天数数字', (tester) async {
@@ -65,7 +65,8 @@ void main() {
       await tester.pumpWidget(wrapWithMaterial(
         EventDetailScreen(event: event),
       ));
-      expect(find.text('30'), findsOneWidget);
+      expect(find.text('30'), findsWidgets);
+      expect(find.text('天'), findsWidgets);
     });
 
     testWidgets('显示目标日期', (tester) async {
@@ -74,7 +75,7 @@ void main() {
       await tester.pumpWidget(wrapWithMaterial(
         EventDetailScreen(event: event),
       ));
-      expect(find.textContaining('目标日:'), findsOneWidget);
+      expect(find.textContaining('起始日:'), findsOneWidget);
       expect(find.textContaining('2026-12-25'), findsOneWidget);
     });
 

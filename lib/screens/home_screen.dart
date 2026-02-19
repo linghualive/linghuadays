@@ -23,8 +23,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _isMultiSelectMode = false;
-  final Set<int> _selectedIds = {};
   Timer? _updateCheckTimer;
 
   @override
@@ -53,9 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final viewMode = ref.watch(viewModeProvider);
 
     return Scaffold(
-      appBar: _isMultiSelectMode
-          ? _buildMultiSelectAppBar(theme)
-          : _buildNormalAppBar(theme, sortType, viewMode),
+      appBar: _buildNormalAppBar(theme, sortType, viewMode),
       body: eventsAsync.when(
         data: (events) {
           final categories =
@@ -78,12 +74,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         loading: () => const SkeletonLoader(),
         error: (e, _) => Center(child: Text('加载失败: $e')),
       ),
-      floatingActionButton: _isMultiSelectMode
-          ? null
-          : FloatingActionButton(
-              onPressed: _onCreateEvent,
-              child: const Icon(Icons.add),
-            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _onCreateEvent,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
@@ -170,22 +164,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  AppBar _buildMultiSelectAppBar(ThemeData theme) {
-    return AppBar(
-      leading: IconButton(
-        icon: const Icon(Icons.close),
-        onPressed: _exitMultiSelect,
-      ),
-      title: Text('已选择 ${_selectedIds.length} 项'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.delete_outline),
-          onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
-        ),
-      ],
-    );
-  }
-
   Widget _buildListView(
     List<Event> events,
     List<EventCategory> categories,
@@ -223,25 +201,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final event = grouped[categoryId]![index];
-                final card = EventCard(
-                  event: event,
-                  style: _findStyle(event.styleId, styles),
-                  category: _findCategory(event.categoryId, categories),
-                  isSelected: _selectedIds.contains(event.id),
-                  onTap: () {
-                    if (_isMultiSelectMode) {
-                      _toggleSelection(event.id!);
-                    } else {
-                      _onEventTap(event);
-                    }
-                  },
-                  onLongPress: _isMultiSelectMode
-                      ? () => _toggleSelection(event.id!)
-                      : () => _enterMultiSelect(event.id!),
-                );
-
-                if (_isMultiSelectMode) return card;
-
                 return Dismissible(
                   key: ValueKey(event.id),
                   direction: DismissDirection.endToStart,
@@ -258,7 +217,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       color: Colors.white,
                     ),
                   ),
-                  child: card,
+                  child: EventCard(
+                    event: event,
+                    style: _findStyle(event.styleId, styles),
+                    category: _findCategory(event.categoryId, categories),
+                    onTap: () => _onEventTap(event),
+                    onLongPress: () => _showContextMenu(context, event),
+                  ),
                 );
               },
             ),
@@ -295,18 +260,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   event: event,
                   style: _findStyle(event.styleId, styles),
                   category: _findCategory(event.categoryId, categories),
-                  isSelected: _selectedIds.contains(event.id),
                   isGridCard: true,
-                  onTap: () {
-                    if (_isMultiSelectMode) {
-                      _toggleSelection(event.id!);
-                    } else {
-                      _onEventTap(event);
-                    }
-                  },
-                  onLongPress: _isMultiSelectMode
-                      ? () => _toggleSelection(event.id!)
-                      : () => _enterMultiSelect(event.id!),
+                  onTap: () => _onEventTap(event),
+                  onLongPress: () => _showContextMenu(context, event),
                 );
               },
               childCount: events.length,
@@ -435,62 +391,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (result == true) {
       await ref.read(eventsProvider.notifier).deleteEvent(event.id!);
-      ref.invalidate(eventsProvider);
       return true;
     }
     return false;
   }
 
-  void _enterMultiSelect(int initialId) {
-    setState(() {
-      _isMultiSelectMode = true;
-      _selectedIds.add(initialId);
-    });
-  }
-
-  void _exitMultiSelect() {
-    setState(() {
-      _isMultiSelectMode = false;
-      _selectedIds.clear();
-    });
-  }
-
-  void _toggleSelection(int id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-        if (_selectedIds.isEmpty) {
-          _isMultiSelectMode = false;
-        }
-      } else {
-        _selectedIds.add(id);
-      }
-    });
-  }
-
-  void _deleteSelected() {
-    showDialog(
+  void _showContextMenu(BuildContext context, Event event) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除选中的 ${_selectedIds.length} 个倒数日吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await ref
-                  .read(eventsProvider.notifier)
-                  .deleteMultiple(_selectedIds.toList());
-              _exitMultiSelect();
-              ref.invalidate(eventsProvider);
-            },
-            child: const Text('删除'),
-          ),
-        ],
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('编辑'),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.pushNamed('editEvent', extra: event);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                event.isPinned
+                    ? Icons.push_pin
+                    : Icons.push_pin_outlined,
+              ),
+              title: Text(event.isPinned ? '取消置顶' : '置顶'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await ref
+                    .read(eventsProvider.notifier)
+                    .togglePin(event.id!);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: theme.colorScheme.error,
+              ),
+              title: Text(
+                '删除',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _confirmDismiss(event);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

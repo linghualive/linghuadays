@@ -84,6 +84,69 @@ class DateCalculationService {
     );
   }
 
+  /// 计算两个日期之间的年、月、天差值
+  ({int years, int months, int days}) yearsMonthsDaysBetween(
+    DateTime from,
+    DateTime to,
+  ) {
+    // 确保 from <= to
+    if (from.isAfter(to)) {
+      final temp = from;
+      from = to;
+      to = temp;
+    }
+
+    int years = to.year - from.year;
+    int months = to.month - from.month;
+
+    if (months < 0) {
+      years--;
+      months += 12;
+    }
+
+    // 计算中间日期：from + years 年 + months 月
+    DateTime intermediate = _addMonths(from, years * 12 + months);
+
+    // 如果中间日期超过 to，说明多算了一个月
+    if (intermediate.isAfter(to)) {
+      months--;
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+      intermediate = _addMonths(from, years * 12 + months);
+    }
+
+    final days = to.difference(intermediate).inDays;
+
+    return (years: years, months: months, days: days);
+  }
+
+  /// 给日期加上指定月数，日期超出当月最大天数时自动截断
+  DateTime _addMonths(DateTime date, int months) {
+    int newYear = date.year + months ~/ 12;
+    int newMonth = date.month + months % 12;
+    if (newMonth > 12) {
+      newYear++;
+      newMonth -= 12;
+    }
+    final maxDay = DateTime(newYear, newMonth + 1, 0).day;
+    final newDay = date.day > maxDay ? maxDay : date.day;
+    return DateTime(newYear, newMonth, newDay);
+  }
+
+  /// 计算两个日期之间的月、天差值
+  ({int months, int days}) monthsDaysBetween(DateTime from, DateTime to) {
+    final result = yearsMonthsDaysBetween(from, to);
+    return (months: result.years * 12 + result.months, days: result.days);
+  }
+
+  /// 将总天数转换为周、天
+  ({int weeks, int days}) weeksDaysBetween(int totalDays) {
+    final abs = totalDays.abs();
+    return (weeks: abs ~/ 7, days: abs % 7);
+  }
+
   bool _isLeapYear(int year) {
     return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
   }

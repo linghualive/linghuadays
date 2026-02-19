@@ -138,4 +138,109 @@ void main() {
       expect(result.seconds, 0);
     });
   });
+
+  group('yearsMonthsDaysBetween', () {
+    test('同一天返回全零', () {
+      final date = DateTime(2026, 2, 19);
+      final result = service.yearsMonthsDaysBetween(date, date);
+      expect(result.years, 0);
+      expect(result.months, 0);
+      expect(result.days, 0);
+    });
+
+    test('相差整年', () {
+      final from = DateTime(2024, 3, 15);
+      final to = DateTime(2026, 3, 15);
+      final result = service.yearsMonthsDaysBetween(from, to);
+      expect(result.years, 2);
+      expect(result.months, 0);
+      expect(result.days, 0);
+    });
+
+    test('跨月份有余天', () {
+      final from = DateTime(2026, 1, 20);
+      final to = DateTime(2026, 3, 5);
+      final result = service.yearsMonthsDaysBetween(from, to);
+      expect(result.years, 0);
+      expect(result.months, 1);
+      expect(result.days, 13);
+    });
+
+    test('跨年计算', () {
+      final from = DateTime(2025, 10, 15);
+      final to = DateTime(2026, 2, 19);
+      final result = service.yearsMonthsDaysBetween(from, to);
+      expect(result.years, 0);
+      expect(result.months, 4);
+      expect(result.days, 4);
+    });
+
+    test('参数顺序无关（自动取绝对值）', () {
+      final from = DateTime(2026, 2, 19);
+      final to = DateTime(2025, 10, 15);
+      final result = service.yearsMonthsDaysBetween(from, to);
+      expect(result.years, 0);
+      expect(result.months, 4);
+      expect(result.days, 4);
+    });
+
+    test('月末边界（1月31日到3月1日）', () {
+      final from = DateTime(2026, 1, 31);
+      final to = DateTime(2026, 3, 1);
+      final result = service.yearsMonthsDaysBetween(from, to);
+      expect(result.years, 0);
+      expect(result.months, 1);
+      expect(result.days, 1);
+    });
+  });
+
+  group('monthsDaysBetween', () {
+    test('超过一年按总月数计算', () {
+      final from = DateTime(2024, 3, 15);
+      final to = DateTime(2026, 3, 15);
+      final result = service.monthsDaysBetween(from, to);
+      expect(result.months, 24);
+      expect(result.days, 0);
+    });
+
+    test('不足一个月只有天数', () {
+      final from = DateTime(2026, 2, 10);
+      final to = DateTime(2026, 2, 19);
+      final result = service.monthsDaysBetween(from, to);
+      expect(result.months, 0);
+      expect(result.days, 9);
+    });
+  });
+
+  group('weeksDaysBetween', () {
+    test('整周无余天', () {
+      final result = service.weeksDaysBetween(14);
+      expect(result.weeks, 2);
+      expect(result.days, 0);
+    });
+
+    test('有余天', () {
+      final result = service.weeksDaysBetween(10);
+      expect(result.weeks, 1);
+      expect(result.days, 3);
+    });
+
+    test('不足一周', () {
+      final result = service.weeksDaysBetween(5);
+      expect(result.weeks, 0);
+      expect(result.days, 5);
+    });
+
+    test('负数取绝对值', () {
+      final result = service.weeksDaysBetween(-10);
+      expect(result.weeks, 1);
+      expect(result.days, 3);
+    });
+
+    test('零天', () {
+      final result = service.weeksDaysBetween(0);
+      expect(result.weeks, 0);
+      expect(result.days, 0);
+    });
+  });
 }
