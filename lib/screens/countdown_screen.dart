@@ -7,6 +7,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/event.dart';
 import '../services/date_calculation_service.dart';
+import '../services/lunar_service.dart';
 
 class CountdownScreen extends StatefulWidget {
   final Event event;
@@ -58,10 +59,25 @@ class _CountdownScreenState extends State<CountdownScreen>
   }
 
   void _updateTime() {
+    final event = widget.event;
+    late final DateTime baseDate;
+    if (!event.isRepeating) {
+      baseDate = event.targetDate;
+    } else if (event.calendarType == 'lunar' &&
+        event.lunarMonth != null &&
+        event.lunarDay != null) {
+      baseDate = LunarService().nextLunarOccurrence(
+        event.lunarMonth!,
+        event.lunarDay!,
+        isLeapMonth: event.isLeapMonth,
+      );
+    } else {
+      baseDate = _calcService.nextOccurrence(event.targetDate);
+    }
     final targetEnd = DateTime(
-      widget.event.targetDate.year,
-      widget.event.targetDate.month,
-      widget.event.targetDate.day,
+      baseDate.year,
+      baseDate.month,
+      baseDate.day,
       23,
       59,
       59,
@@ -254,7 +270,21 @@ class _CountdownScreenState extends State<CountdownScreen>
   }
 
   String _formatTargetDate() {
-    final d = widget.event.targetDate;
+    final event = widget.event;
+    if (event.calendarType == 'lunar' &&
+        event.lunarMonth != null &&
+        event.lunarDay != null) {
+      final lunarService = LunarService();
+      final lunarStr = lunarService.getLunarDateString(
+        event.lunarYear ?? DateTime.now().year,
+        event.lunarMonth!,
+        event.lunarDay!,
+        isLeapMonth: event.isLeapMonth,
+      );
+      final d = event.targetDate;
+      return '$lunarStr (${d.year}.${d.month}.${d.day})';
+    }
+    final d = event.targetDate;
     return '${d.year}年${d.month}月${d.day}日';
   }
 }

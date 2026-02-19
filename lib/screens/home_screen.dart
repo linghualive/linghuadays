@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,8 +11,9 @@ import '../providers/category_provider.dart';
 import '../providers/event_provider.dart';
 import '../providers/style_provider.dart';
 import '../repositories/event_repository.dart';
-import '../services/date_calculation_service.dart';
+import '../services/update_service.dart';
 import '../widgets/event_card.dart';
+import '../widgets/skeleton_loader.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +25,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isMultiSelectMode = false;
   final Set<int> _selectedIds = {};
+  Timer? _updateCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateCheckTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        UpdateService().checkAndNotify(context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateCheckTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonLoader(),
         error: (e, _) => Center(child: Text('加载失败: $e')),
       ),
       floatingActionButton: _isMultiSelectMode
@@ -167,15 +187,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     Event? focusEvent,
     ThemeData theme,
   ) {
-    // 分类筛选条件
-    final categoryFilter = ref.watch(eventCategoryFilterProvider);
+    // Group events by category
+    final grouped = <int?, List<Event>>{};
+    for (final event in events) {
+      grouped.putIfAbsent(event.categoryId, () => []).add(event);
+    }
+
+    // Sort groups: categorized first (by category name), uncategorized last
+    final sortedKeys = grouped.keys.toList()
+      ..sort((a, b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        final catA = _findCategory(a, categories);
+        final catB = _findCategory(b, categories);
+        return (catA?.name ?? '').compareTo(catB?.name ?? '');
+      });
 
     return CustomScrollView(
       slivers: [
-        // 分类筛选 chips
-        SliverToBoxAdapter(
-          child: _buildCategoryFilter(categories, categoryFilter, theme),
-        ),
         // 焦点事件
         if (focusEvent != null && !_isMultiSelectMode)
           SliverToBoxAdapter(
@@ -192,37 +222,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-        // 事件列表
-        SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          sliver: SliverList.separated(
-            itemCount: events.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final event = events[index];
-              return EventCard(
-                event: event,
-                style: _findStyle(event.styleId, styles),
-                category: _findCategory(event.categoryId, categories),
-                isSelected: _selectedIds.contains(event.id),
-                onTap: () {
-                  if (_isMultiSelectMode) {
-                    _toggleSelection(event.id!);
-                  } else {
-                    _onEventTap(event);
-                  }
-                },
-                onLongPress: () {
-                  if (_isMultiSelectMode) {
-                    _toggleSelection(event.id!);
-                  } else {
-                    _showEventMenu(event);
-                  }
-                },
-              );
-            },
+        // 按分类分组的事件列表
+        for (final categoryId in sortedKeys) ...[
+          SliverToBoxAdapter(
+            child: _buildGroupHeader(categoryId, categories, theme),
           ),
-        ),
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList.separated(
+              itemCount: grouped[categoryId]!.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final event = grouped[categoryId]![index];
+                return EventCard(
+                  event: event,
+                  style: _findStyle(event.styleId, styles),
+                  category: _findCategory(event.categoryId, categories),
+                  isSelected: _selectedIds.contains(event.id),
+                  onTap: () {
+                    if (_isMultiSelectMode) {
+                      _toggleSelection(event.id!);
+                    } else {
+                      _onEventTap(event);
+                    }
+                  },
+                  onLongPress: () {
+                    if (_isMultiSelectMode) {
+                      _toggleSelection(event.id!);
+                    } else {
+                      _showEventMenu(event);
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+        ],
         const SliverToBoxAdapter(
           child: SizedBox(height: 88),
         ),
@@ -230,42 +265,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildCategoryFilter(
+  Widget _buildGroupHeader(
+    int? categoryId,
     List<EventCategory> categories,
-    int? selectedCategoryId,
     ThemeData theme,
   ) {
-    return SizedBox(
-      height: 48,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+    final category = _findCategory(categoryId, categories);
+    final name = category?.name ?? '未分类';
+    final color = category?.color;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: const Text('全部'),
-              selected: selectedCategoryId == null,
-              onSelected: (_) {
-                ref.read(eventCategoryFilterProvider.notifier).state = null;
-              },
-            ),
-          ),
-          ...categories.map(
-            (cat) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(cat.name),
-                selected: selectedCategoryId == cat.id,
-                avatar: CircleAvatar(
-                  backgroundColor: cat.color,
-                  radius: 6,
-                ),
-                onSelected: (_) {
-                  ref.read(eventCategoryFilterProvider.notifier).state =
-                      selectedCategoryId == cat.id ? null : cat.id;
-                },
+          if (color != null)
+            Container(
+              width: 12,
+              height: 12,
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
               ),
+            ),
+          Text(
+            name,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -319,12 +346,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _onEventTap(Event event) {
-    final days = DateCalculationService().daysUntil(event.targetDate);
-    if (days > 0) {
-      context.pushNamed('countdown', extra: event);
-    } else {
-      context.pushNamed('editEvent', extra: event);
-    }
+    context.pushNamed('eventDetail', extra: event);
   }
 
   void _onCreateEvent() {

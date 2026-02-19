@@ -1,15 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/category_provider.dart';
 import '../providers/event_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/import_service.dart';
 import '../services/update_service.dart';
 import '../themes/app_theme.dart';
 import 'category_management_screen.dart';
@@ -42,6 +43,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final themeSetting = ref.watch(themeProvider);
+    final useDynamic = ref.watch(useDynamicColorProvider);
+    final seedColor = ref.watch(seedColorProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
@@ -55,6 +58,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: Text(_themeLabel(themeSetting)),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showThemeDialog(context, themeSetting),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.wallpaper_outlined),
+            title: const Text('壁纸取色'),
+            subtitle: const Text('使用系统壁纸颜色（需 Android 12+）'),
+            value: useDynamic,
+            onChanged: (value) {
+              ref.read(useDynamicColorProvider.notifier).setUseDynamicColor(value);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.color_lens_outlined),
+            title: const Text('主题色'),
+            subtitle: Text(useDynamic ? '壁纸取色已开启' : '自定义主题色'),
+            enabled: !useDynamic,
+            trailing: Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: useDynamic
+                    ? theme.colorScheme.primary
+                    : (seedColor ?? const Color(0xFF6750A4)),
+                shape: BoxShape.circle,
+              ),
+            ),
+            onTap: useDynamic ? null : () => _showColorPicker(context, seedColor),
           ),
           const Divider(),
 
@@ -164,34 +193,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _checkForUpdate() async {
     setState(() => _checkingUpdate = true);
 
-    final messenger = ScaffoldMessenger.of(context);
-
     try {
-      final updateService = UpdateService();
-      final info = await updateService.checkForUpdate();
-
-      if (!mounted) return;
-
-      if (info == null) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('检查更新失败，请检查网络连接')),
-        );
-        return;
-      }
-
-      if (info.hasUpdate) {
-        _showUpdateDialog(context, info, updateService);
-      } else {
-        messenger.showSnackBar(
-          SnackBar(content: Text('已是最新版本 (${info.currentVersion})')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('检查更新失败，请稍后重试')),
-        );
-      }
+      await UpdateService().manualCheck(context);
     } finally {
       if (mounted) {
         setState(() => _checkingUpdate = false);
@@ -199,96 +202,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  void _showUpdateDialog(
-    BuildContext context,
-    AppUpdateInfo info,
-    UpdateService updateService,
-  ) {
-    final theme = Theme.of(context);
+  void _showColorPicker(BuildContext context, Color? currentColor) {
+    final presetColors = <Color>[
+      const Color(0xFF6750A4), // M3 default purple
+      const Color(0xFF006A6A), // Teal
+      const Color(0xFF006E1C), // Green
+      const Color(0xFF0061A4), // Blue
+      const Color(0xFF9C4146), // Red
+      const Color(0xFFBA1A1A), // Error red
+      const Color(0xFF7D5260), // Pink
+      const Color(0xFF6B5778), // Mauve
+      const Color(0xFF4A6267), // Slate
+      const Color(0xFFFF6F00), // Orange
+      const Color(0xFF795548), // Brown
+      const Color(0xFF37474F), // Blue grey
+    ];
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('发现新版本'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  '${info.currentVersion} ',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.outline,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('选择主题色'),
+          content: SizedBox(
+            width: 280,
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: presetColors.map((color) {
+                final isSelected = currentColor == color ||
+                    (currentColor == null && color == const Color(0xFF6750A4));
+                return GestureDetector(
+                  onTap: () {
+                    ref.read(seedColorProvider.notifier).setSeedColor(color);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: isSelected
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.outline,
+                              width: 3,
+                            )
+                          : null,
+                    ),
+                    child: isSelected
+                        ? const Icon(Icons.check, color: Colors.white, size: 20)
+                        : null,
                   ),
-                ),
-                Icon(
-                  Icons.arrow_forward,
-                  size: 16,
-                  color: theme.colorScheme.outline,
-                ),
-                Text(
-                  ' ${info.latestVersion}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+                );
+              }).toList(),
             ),
-            if (info.releaseNotes.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                '更新内容',
-                style: theme.textTheme.labelLarge,
-              ),
-              const SizedBox(height: 4),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Text(
-                    info.releaseNotes,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('稍后再说'),
           ),
-          if (info.htmlUrl.isNotEmpty)
-            FilledButton.tonal(
+          actions: [
+            TextButton(
               onPressed: () {
+                ref.read(seedColorProvider.notifier).setSeedColor(null);
                 Navigator.pop(context);
-                _openUrl(updateService.getMirrorDownloadUrl(info.htmlUrl));
               },
-              child: const Text('镜像下载'),
+              child: const Text('恢复默认'),
             ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openUrl(info.htmlUrl);
-            },
-            child: const Text('前往下载'),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+          ],
+        );
+      },
     );
-  }
-
-  Future<void> _openUrl(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开链接')),
-      );
-    }
   }
 
   Future<void> _exportData(BuildContext context) async {
@@ -330,10 +314,108 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importData(BuildContext context) async {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('导入功能即将上线')),
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
       );
+
+      if (result == null || result.files.single.path == null) return;
+
+      final file = File(result.files.single.path!);
+      final jsonStr = await file.readAsString();
+
+      final existingEvents = await ref.read(eventsProvider.future);
+      final importService = ImportService();
+      final importData =
+          importService.parseAndValidate(jsonStr, existingEvents);
+
+      if (!mounted) return;
+
+      // Import non-duplicate categories
+      final existingCats = await ref.read(categoriesProvider.future);
+      final existingCatNames = existingCats.map((c) => c.name).toSet();
+      var importedCats = 0;
+      for (final cat in importData.categories) {
+        if (!existingCatNames.contains(cat.name)) {
+          await ref.read(categoriesProvider.notifier).addCategory(cat);
+          importedCats++;
+        }
+      }
+
+      // Import non-duplicate events
+      for (final event in importData.events) {
+        await ref.read(eventsProvider.notifier).addEvent(event);
+      }
+
+      // Handle duplicates: ask user
+      var overwritten = 0;
+      if (importData.duplicates.isNotEmpty && mounted) {
+        overwritten = await _showDuplicateDialog(
+              importData.duplicates,
+            ) ??
+            0;
+      }
+
+      if (!mounted) return;
+
+      final total = importData.events.length + overwritten;
+      final skipped = importData.duplicates.length - overwritten;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '导入完成：$total 个事件导入'
+            '${skipped > 0 ? '，$skipped 个跳过' : ''}'
+            '${importedCats > 0 ? '，$importedCats 个分类' : ''}',
+          ),
+        ),
+      );
+    } on FormatException catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('导入失败：${e.message}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('导入失败：$e')),
+        );
+      }
     }
+  }
+
+  Future<int?> _showDuplicateDialog(
+    List<DuplicateEvent> duplicates,
+  ) async {
+    return showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('发现重复事件'),
+        content: Text('检测到 ${duplicates.length} 个重复事件（名称和日期相同），如何处理？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 0),
+            child: const Text('全部跳过'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(context, duplicates.length);
+              for (final dup in duplicates) {
+                final updated = dup.existing.copyWith(
+                  note: () => dup.incoming.note,
+                  isRepeating: dup.incoming.isRepeating,
+                  updatedAt: DateTime.now(),
+                );
+                await ref.read(eventsProvider.notifier).updateEvent(updated);
+              }
+            },
+            child: const Text('全部覆盖'),
+          ),
+        ],
+      ),
+    );
   }
 }

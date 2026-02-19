@@ -33,7 +33,8 @@ class EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final calcService = DateCalculationService();
-    final days = calcService.daysUntil(event.targetDate);
+    final effectiveDate = _getEffectiveDate(event, calcService);
+    final days = calcService.daysUntil(effectiveDate);
 
     final effectiveStyle = style ?? CardStyle.presets.first;
 
@@ -376,10 +377,25 @@ class EventCard extends StatelessWidget {
     return '天前';
   }
 
+  static DateTime _getEffectiveDate(Event event, DateCalculationService calcService) {
+    if (!event.isRepeating) return event.targetDate;
+    if (event.calendarType == 'lunar' &&
+        event.lunarMonth != null &&
+        event.lunarDay != null) {
+      return LunarService().nextLunarOccurrence(
+        event.lunarMonth!,
+        event.lunarDay!,
+        isLeapMonth: event.isLeapMonth,
+      );
+    }
+    return calcService.nextOccurrence(event.targetDate);
+  }
+
   String _formatDateLine() {
-    final date = event.targetDate;
+    final calcService = DateCalculationService();
+    final displayDate = _getEffectiveDate(event, calcService);
     final dateStr =
-        '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+        '${displayDate.year}.${displayDate.month.toString().padLeft(2, '0')}.${displayDate.day.toString().padLeft(2, '0')}';
 
     if (event.calendarType == 'lunar' &&
         event.lunarYear != null &&

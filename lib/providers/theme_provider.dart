@@ -5,10 +5,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../themes/app_theme.dart';
 
 const _themeKey = 'theme_mode';
+const _seedColorKey = 'seed_color';
+const _useDynamicColorKey = 'use_dynamic_color';
 
 final themeProvider =
     StateNotifierProvider<ThemeNotifier, ThemeModeSetting>((ref) {
   return ThemeNotifier();
+});
+
+final seedColorProvider =
+    StateNotifierProvider<SeedColorNotifier, Color?>((ref) {
+  return SeedColorNotifier();
+});
+
+final useDynamicColorProvider =
+    StateNotifierProvider<UseDynamicColorNotifier, bool>((ref) {
+  return UseDynamicColorNotifier();
 });
 
 class ThemeNotifier extends StateNotifier<ThemeModeSetting> {
@@ -39,5 +51,49 @@ class ThemeNotifier extends StateNotifier<ThemeModeSetting> {
       case ThemeModeSetting.system:
         return ThemeMode.system;
     }
+  }
+}
+
+class SeedColorNotifier extends StateNotifier<Color?> {
+  SeedColorNotifier() : super(null) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getInt(_seedColorKey);
+    if (value != null) {
+      state = Color(value);
+    }
+  }
+
+  Future<void> setSeedColor(Color? color) async {
+    state = color;
+    final prefs = await SharedPreferences.getInstance();
+    if (color != null) {
+      await prefs.setInt(_seedColorKey, color.toARGB32());
+    } else {
+      await prefs.remove(_seedColorKey);
+    }
+  }
+}
+
+class UseDynamicColorNotifier extends StateNotifier<bool> {
+  UseDynamicColorNotifier() : super(true) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getBool(_useDynamicColorKey);
+    if (value != null) {
+      state = value;
+    }
+  }
+
+  Future<void> setUseDynamicColor(bool value) async {
+    state = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_useDynamicColorKey, value);
   }
 }

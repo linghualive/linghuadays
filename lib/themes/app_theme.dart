@@ -26,6 +26,11 @@ class AppTheme {
     return _buildTheme(colorScheme);
   }
 
+  /// Build theme from a pre-built ColorScheme (e.g. Monet dynamic colors).
+  static ThemeData fromColorScheme(ColorScheme colorScheme) {
+    return _buildTheme(colorScheme);
+  }
+
   static ThemeData _buildTheme(ColorScheme colorScheme) {
     final textTheme = _buildTextTheme(colorScheme);
 

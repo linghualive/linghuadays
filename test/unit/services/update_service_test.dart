@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:daysmater/services/update_service.dart';
 
@@ -114,6 +115,125 @@ void main() {
 
       expect(mirror, contains('ghfast.top'));
       expect(mirror, contains('github.com'));
+    });
+  });
+
+  group('UpdateService 跳过版本', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('默认无跳过版本', () async {
+      final version = await service.getSkippedVersion();
+      expect(version, isNull);
+    });
+
+    test('设置跳过版本后可读取', () async {
+      await service.setSkippedVersion('2.0.0');
+      final version = await service.getSkippedVersion();
+      expect(version, '2.0.0');
+    });
+
+    test('清除跳过版本后返回 null', () async {
+      await service.setSkippedVersion('2.0.0');
+      await service.clearSkippedVersion();
+      final version = await service.getSkippedVersion();
+      expect(version, isNull);
+    });
+
+    test('覆盖已有的跳过版本', () async {
+      await service.setSkippedVersion('2.0.0');
+      await service.setSkippedVersion('3.0.0');
+      final version = await service.getSkippedVersion();
+      expect(version, '3.0.0');
+    });
+  });
+
+  group('UpdateService 查找 APK 资源', () {
+    test('从 assets 中找到 .apk 文件', () {
+      const info = AppUpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseNotes: '',
+        htmlUrl: '',
+        assets: [
+          AppAsset(
+            name: 'app-release.apk',
+            downloadUrl: 'https://example.com/app.apk',
+            size: 25000000,
+          ),
+          AppAsset(
+            name: 'checksums.txt',
+            downloadUrl: 'https://example.com/checksums.txt',
+            size: 256,
+          ),
+        ],
+        hasUpdate: true,
+      );
+
+      final apk = service.getApkAsset(info);
+      expect(apk, isNotNull);
+      expect(apk!.name, 'app-release.apk');
+    });
+
+    test('没有 .apk 文件时返回 null', () {
+      const info = AppUpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseNotes: '',
+        htmlUrl: '',
+        assets: [
+          AppAsset(
+            name: 'checksums.txt',
+            downloadUrl: 'https://example.com/checksums.txt',
+            size: 256,
+          ),
+        ],
+        hasUpdate: true,
+      );
+
+      final apk = service.getApkAsset(info);
+      expect(apk, isNull);
+    });
+
+    test('空 assets 列表时返回 null', () {
+      const info = AppUpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseNotes: '',
+        htmlUrl: '',
+        assets: [],
+        hasUpdate: true,
+      );
+
+      final apk = service.getApkAsset(info);
+      expect(apk, isNull);
+    });
+
+    test('多个 .apk 文件时返回第一个', () {
+      const info = AppUpdateInfo(
+        latestVersion: '2.0.0',
+        currentVersion: '1.0.0',
+        releaseNotes: '',
+        htmlUrl: '',
+        assets: [
+          AppAsset(
+            name: 'app-arm64.apk',
+            downloadUrl: 'https://example.com/arm64.apk',
+            size: 20000000,
+          ),
+          AppAsset(
+            name: 'app-universal.apk',
+            downloadUrl: 'https://example.com/universal.apk',
+            size: 40000000,
+          ),
+        ],
+        hasUpdate: true,
+      );
+
+      final apk = service.getApkAsset(info);
+      expect(apk, isNotNull);
+      expect(apk!.name, 'app-arm64.apk');
     });
   });
 }

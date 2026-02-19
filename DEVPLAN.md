@@ -271,7 +271,7 @@
   - 调用系统分享/保存接口导出文件
   - 测试：JSON 结构完整性、特殊字符处理
 
-- [ ] **8.3 数据导入**
+- [x] **8.3 数据导入**
   - 设置页中"导入数据"入口
   - 从文件选择器选取 JSON 文件
   - 解析并校验 JSON 格式
@@ -301,18 +301,60 @@
   - 搜索无结果时的空状态提示
   - 测试：空状态展示条件
 
-- [ ] **9.4 性能与体验优化**
-  - 列表 `ListView.builder` 懒加载
+- [x] **9.4 性能与体验优化**
+  - 列表 `SliverList.separated` 懒加载
   - 数据库查询优化（索引）
-  - 首屏加载骨架屏
-  - 页面转场动画（M3 motion 规范）
-  - 测试：1000 条数据下的列表滚动流畅性
+  - 首屏加载骨架屏（SkeletonLoader 带呼吸动画）
+  - 页面转场动画（M3 motion：横向滑入、底部滑入、淡入缩放）
+  - 测试：骨架屏渲染、转场动画配置
 
 - [ ] **9.5 国际化基础**
   - 配置 `flutter_localizations`
   - 提取所有硬编码字符串到 ARB 文件
   - 首期仅提供中文（简体），预留英文扩展
   - 测试：中文显示完整性
+
+---
+
+## Sprint 10：应用内更新功能
+
+> 实现完整的应用内更新检查、下载和安装功能。
+
+- [x] **10.1 添加更新相关依赖**
+  - 新增 `dio`（APK 下载，支持进度回调）
+  - 新增 `flutter_markdown`（渲染 Markdown 格式的 Release Notes）
+  - 测试：依赖安装成功
+
+- [x] **10.2 跳过版本持久化存储**
+  - `getSkippedVersion()` / `setSkippedVersion()` / `clearSkippedVersion()`
+  - 基于 SharedPreferences 实现
+  - 测试：读写清除跳过版本、覆盖已有版本
+
+- [x] **10.3 增强 UpdateService**
+  - `checkAndNotify(context)`：自动检查，有新版本且未跳过时弹对话框
+  - `manualCheck(context)`：手动检查，始终显示结果
+  - `getApkAsset(info)`：从 assets 中查找 .apk 文件
+  - 完整更新对话框：MarkdownBody 渲染 Release Notes、三按钮（跳过/稍后/立即更新）
+  - Android APK 下载进度 BottomSheet（downloading/installing/failed 三状态）
+  - 非 Android 平台 url_launcher 打开浏览器
+  - 测试：APK 资源查找（找到/未找到/空列表/多个APK），跳过版本逻辑
+
+- [x] **10.4 Android 原生 APK 安装**
+  - AndroidManifest.xml 添加 `REQUEST_INSTALL_PACKAGES` 权限和 FileProvider
+  - 新建 `file_paths.xml` 配置缓存路径
+  - MainActivity.kt 注册 MethodChannel，实现 `installApk` 方法
+  - 测试：构建验证（flutter analyze 通过）
+
+- [x] **10.5 启动时自动检查更新**
+  - HomeScreen initState 中延迟 2 秒调用 `checkAndNotify`
+  - 使用 Timer 确保 dispose 时可取消
+  - 测试：widget_test 通过（无 pending timer 问题）
+
+- [x] **10.6 设置页统一更新逻辑**
+  - 简化 `_checkForUpdate`，调用 `UpdateService.manualCheck(context)`
+  - 移除原有的 `_showUpdateDialog` 和 `_openUrl` 方法
+  - 移除不再需要的 `url_launcher` 导入
+  - 测试：flutter analyze 零警告
 
 ---
 
@@ -327,5 +369,6 @@
 | 5 | 创建与编辑事件 | 已完成 | 公历/农历选择器、风格选择器、分类内联创建 |
 | 6 | 事件详情与实时倒计时 | 已完成 | 横屏全屏倒计时、秒级刷新、归零提示、屏幕常亮 |
 | 7 | 提醒通知系统 | 已完成 | NotificationService, 提醒UI, zonedSchedule调度, 12 tests |
-| 8 | 分类管理与数据导入导出 | 进行中 | 分类管理和导出已完成，导入待实现 |
-| 9 | 设置页面与收尾优化 | 进行中 | 设置页、快捷菜单、空状态已完成 |
+| 8 | 分类管理与数据导入导出 | 已完成 | 分类管理、导出、导入(file_picker+重复检测), 13 tests |
+| 9 | 设置页面与收尾优化 | 进行中 | 设置页、快捷菜单、空状态、骨架屏、转场动画已完成，国际化未做 |
+| 10 | 应用内更新功能 | 已完成 | 跳过版本、Markdown Release Notes、APK 下载安装、启动自动检查，19 tests |

@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,15 +13,34 @@ class DaysMaterApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(themeProvider);
     final themeNotifier = ref.read(themeProvider.notifier);
+    final seedColor = ref.watch(seedColorProvider);
+    final useDynamic = ref.watch(useDynamicColorProvider);
 
-    return MaterialApp.router(
-      title: 'DaysMater',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      themeMode: themeNotifier.themeMode,
-      routerConfig: router,
-      locale: const Locale('zh', 'CN'),
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        ThemeData lightTheme;
+        ThemeData darkTheme;
+
+        if (useDynamic && lightDynamic != null && darkDynamic != null) {
+          // Use Monet dynamic colors from wallpaper
+          lightTheme = AppTheme.fromColorScheme(lightDynamic);
+          darkTheme = AppTheme.fromColorScheme(darkDynamic);
+        } else {
+          // Use seed color (custom or default)
+          lightTheme = AppTheme.lightTheme(seedColor: seedColor);
+          darkTheme = AppTheme.darkTheme(seedColor: seedColor);
+        }
+
+        return MaterialApp.router(
+          title: 'DaysMater',
+          debugShowCheckedModeBanner: false,
+          theme: lightTheme,
+          darkTheme: darkTheme,
+          themeMode: themeNotifier.themeMode,
+          routerConfig: router,
+          locale: const Locale('zh', 'CN'),
+        );
+      },
     );
   }
 }
