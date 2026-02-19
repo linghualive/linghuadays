@@ -39,17 +39,17 @@ void main() {
       expect(result!.styleName, '自定义风格');
     });
 
-    test('initPresets 初始化7种预设风格', () async {
+    test('initPresets 初始化12种预设风格', () async {
       await repo.initPresets();
       final styles = await repo.getAll();
-      expect(styles.length, 7);
+      expect(styles.length, 12);
     });
 
     test('initPresets 不重复初始化', () async {
       await repo.initPresets();
       await repo.initPresets();
       final styles = await repo.getAll();
-      expect(styles.length, 7);
+      expect(styles.length, 12);
     });
 
     test('delete 预设风格抛异常', () async {
@@ -108,8 +108,8 @@ void main() {
       ));
 
       final styles = await repo.getAll();
-      // 前7个是预设
-      for (var i = 0; i < 7; i++) {
+      // 前12个是预设
+      for (var i = 0; i < 12; i++) {
         expect(styles[i].isPreset, true);
       }
       expect(styles.last.isPreset, false);

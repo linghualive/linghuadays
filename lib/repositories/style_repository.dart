@@ -35,7 +35,7 @@ class StyleRepository {
   }
 
   Future<int> delete(int id) async {
-    // 预设风格不可删除
+    // 预设样式不可删除
     final style = await getById(id);
     if (style != null && style.isPreset) {
       throw StateError('Cannot delete preset style');
@@ -45,8 +45,17 @@ class StyleRepository {
 
   Future<void> initPresets() async {
     final existing = await getAll();
-    if (existing.isNotEmpty) return;
+    final existingPresets = existing.where((s) => s.isPreset).toList();
 
+    // 预设数量匹配则跳过
+    if (existingPresets.length == CardStyle.presets.length) return;
+
+    // 删除旧预设，插入新预设
+    for (final old in existingPresets) {
+      if (old.id != null) {
+        await _dbHelper.delete(_table, id: old.id!);
+      }
+    }
     for (final preset in CardStyle.presets) {
       await insert(preset);
     }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -184,11 +186,11 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             ),
             const SizedBox(height: 24),
 
-            // 风格选择
+            // 样式选择
             stylesAsync.when(
               data: (styles) => _buildStyleSelector(styles),
               loading: () => const LinearProgressIndicator(),
-              error: (_, __) => const Text('加载风格失败'),
+              error: (_, __) => const Text('加载样式失败'),
             ),
             const SizedBox(height: 32),
           ],
@@ -435,6 +437,24 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       previewEvent: previewEvent,
       onSelected: (style) {
         setState(() => _styleId = style.id);
+      },
+      onDeleted: (style) async {
+        // 如果删除的是当前选中的样式，切到第一个预设
+        if (_styleId == style.id) {
+          final firstPreset = styles.firstWhere(
+            (s) => s.isPreset,
+            orElse: () => styles.first,
+          );
+          setState(() => _styleId = firstPreset.id);
+        }
+        // 删除样式和图片文件
+        if (style.id != null) {
+          await ref.read(stylesProvider.notifier).deleteStyle(style.id!);
+        }
+        if (style.backgroundImagePath != null) {
+          final file = File(style.backgroundImagePath!);
+          if (file.existsSync()) file.deleteSync();
+        }
       },
     );
   }

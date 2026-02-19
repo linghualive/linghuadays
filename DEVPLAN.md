@@ -49,7 +49,7 @@
   - 定义 `Event` 模型类，包含字段：
     - id, name, targetDate, calendarType(solar/lunar),
     - lunarYear, lunarMonth, lunarDay, isLeapMonth,
-    - categoryId, note, isRepeating, isPinned, isFocus,
+    - categoryId, note, isRepeating, isPinned,
     - styleId, createdAt, updatedAt
   - 实现 `toMap()` / `fromMap()` 序列化
   - 实现 `toJson()` / `fromJson()` 用于导入导出
@@ -117,7 +117,7 @@
   - `categoriesProvider`：分类列表状态
   - `stylesProvider`：风格列表状态
   - `themeProvider`：主题模式状态
-  - `focusEventProvider`：焦点事件状态
+  - `viewModeProvider`：视图模式状态（列表/网格，SharedPreferences 持久化）
   - 测试：状态变更、数据联动
 
 ---
@@ -128,10 +128,10 @@
 
 - [x] **4.1 首页框架**
   - 实现 `HomeScreen`，M3 Scaffold 结构
-  - 顶部焦点事件卡片区域（应用事件自定义风格）
-  - 底部事件列表区域
+  - 支持列表视图和网格视图切换（AppBar 切换按钮）
+  - 网格视图：2列 SliverGrid，卡片含彩色标题栏+大号天数+日期行
   - FAB 按钮用于创建新事件
-  - 测试：页面渲染、焦点事件展示
+  - 测试：页面渲染、视图切换
 
 - [x] **4.2 事件卡片组件**
   - 实现 `EventCard` Widget，根据事件绑定的 `CardStyle` 渲染不同视觉风格

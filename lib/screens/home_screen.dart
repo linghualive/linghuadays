@@ -49,19 +49,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final eventsAsync = ref.watch(eventsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final stylesAsync = ref.watch(stylesProvider);
-    final focusEventAsync = ref.watch(focusEventProvider);
     final sortType = ref.watch(eventSortProvider);
+    final viewMode = ref.watch(viewModeProvider);
 
     return Scaffold(
       appBar: _isMultiSelectMode
           ? _buildMultiSelectAppBar(theme)
-          : _buildNormalAppBar(theme, sortType),
+          : _buildNormalAppBar(theme, sortType, viewMode),
       body: eventsAsync.when(
         data: (events) {
           final categories =
               categoriesAsync.valueOrNull ?? <EventCategory>[];
           final styles = stylesAsync.valueOrNull ?? <CardStyle>[];
-          final focusEvent = focusEventAsync.valueOrNull;
 
           if (events.isEmpty) {
             return _buildEmptyState(theme);
@@ -71,13 +70,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onRefresh: () async {
               ref.invalidate(eventsProvider);
             },
-            child: _buildEventList(
-              events,
-              categories,
-              styles,
-              focusEvent,
-              theme,
-            ),
+            child: viewMode == ViewMode.grid
+                ? _buildGridView(events, categories, styles, theme)
+                : _buildListView(events, categories, styles, theme),
           );
         },
         loading: () => const SkeletonLoader(),
@@ -92,13 +87,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  AppBar _buildNormalAppBar(ThemeData theme, EventSortType sortType) {
+  AppBar _buildNormalAppBar(
+      ThemeData theme, EventSortType sortType, ViewMode viewMode) {
     return AppBar(
       title: const Text('玲华倒数'),
       actions: [
         IconButton(
           icon: const Icon(Icons.search),
           onPressed: _showSearch,
+        ),
+        IconButton(
+          icon: Icon(
+            viewMode == ViewMode.list
+                ? Icons.grid_view_outlined
+                : Icons.view_list_outlined,
+          ),
+          onPressed: () {
+            ref.read(viewModeProvider.notifier).toggle();
+          },
         ),
         PopupMenuButton<EventSortType>(
           icon: const Icon(Icons.sort),
@@ -180,11 +186,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildEventList(
+  Widget _buildListView(
     List<Event> events,
     List<EventCategory> categories,
     List<CardStyle> styles,
-    Event? focusEvent,
     ThemeData theme,
   ) {
     // Group events by category
@@ -206,22 +211,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return CustomScrollView(
       slivers: [
-        // 焦点事件
-        if (focusEvent != null && !_isMultiSelectMode)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-              child: EventCard(
-                event: focusEvent,
-                style: _findStyle(focusEvent.styleId, styles),
-                category:
-                    _findCategory(focusEvent.categoryId, categories),
-                isFocusCard: true,
-                onTap: () => _onEventTap(focusEvent),
-                onLongPress: () => _showEventMenu(focusEvent),
-              ),
-            ),
-          ),
         // 按分类分组的事件列表
         for (final categoryId in sortedKeys) ...[
           SliverToBoxAdapter(
@@ -234,7 +223,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final event = grouped[categoryId]![index];
-                return EventCard(
+                final card = EventCard(
                   event: event,
                   style: _findStyle(event.styleId, styles),
                   category: _findCategory(event.categoryId, categories),
@@ -246,13 +235,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _onEventTap(event);
                     }
                   },
-                  onLongPress: () {
-                    if (_isMultiSelectMode) {
-                      _toggleSelection(event.id!);
-                    } else {
-                      _showEventMenu(event);
-                    }
-                  },
+                  onLongPress: _isMultiSelectMode
+                      ? () => _toggleSelection(event.id!)
+                      : () => _enterMultiSelect(event.id!),
+                );
+
+                if (_isMultiSelectMode) return card;
+
+                return Dismissible(
+                  key: ValueKey(event.id),
+                  direction: DismissDirection.endToStart,
+                  confirmDismiss: (_) => _confirmDismiss(event),
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.error,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.white,
+                    ),
+                  ),
+                  child: card,
                 );
               },
             ),
@@ -260,6 +266,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
         const SliverToBoxAdapter(
           child: SizedBox(height: 88),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridView(
+    List<Event> events,
+    List<EventCategory> categories,
+    List<CardStyle> styles,
+    ThemeData theme,
+  ) {
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.1,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final event = events[index];
+                return EventCard(
+                  event: event,
+                  style: _findStyle(event.styleId, styles),
+                  category: _findCategory(event.categoryId, categories),
+                  isSelected: _selectedIds.contains(event.id),
+                  isGridCard: true,
+                  onTap: () {
+                    if (_isMultiSelectMode) {
+                      _toggleSelection(event.id!);
+                    } else {
+                      _onEventTap(event);
+                    }
+                  },
+                  onLongPress: _isMultiSelectMode
+                      ? () => _toggleSelection(event.id!)
+                      : () => _enterMultiSelect(event.id!),
+                );
+              },
+              childCount: events.length,
+            ),
+          ),
         ),
       ],
     );
@@ -345,12 +397,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _onEventTap(Event event) {
-    context.pushNamed('eventDetail', extra: event);
+  void _onEventTap(Event event) async {
+    await context.pushNamed('eventDetail', extra: event);
+    ref.invalidate(eventsProvider);
   }
 
-  void _onCreateEvent() {
-    context.pushNamed('createEvent');
+  void _onCreateEvent() async {
+    await context.pushNamed('createEvent');
+    ref.invalidate(eventsProvider);
   }
 
   void _showSearch() {
@@ -360,69 +414,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showEventMenu(Event event) {
-    showModalBottomSheet(
+  Future<bool> _confirmDismiss(Event event) async {
+    final result = await showDialog<bool>(
       context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('编辑'),
-              onTap: () {
-                Navigator.pop(context);
-                context.pushNamed('editEvent', extra: event);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                event.isPinned
-                    ? Icons.push_pin
-                    : Icons.push_pin_outlined,
-              ),
-              title: Text(event.isPinned ? '取消置顶' : '置顶'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(eventsProvider.notifier).togglePin(event.id!);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.star_outline),
-              title: const Text('设为焦点'),
-              onTap: () {
-                Navigator.pop(context);
-                ref.read(eventsProvider.notifier).setFocus(event.id!);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.checklist),
-              title: const Text('多选'),
-              onTap: () {
-                Navigator.pop(context);
-                _enterMultiSelect(event.id!);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                '删除',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDelete(event);
-              },
-            ),
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除「${event.name}」吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除'),
+          ),
+        ],
       ),
     );
+
+    if (result == true) {
+      await ref.read(eventsProvider.notifier).deleteEvent(event.id!);
+      ref.invalidate(eventsProvider);
+      return true;
+    }
+    return false;
   }
 
   void _enterMultiSelect(int initialId) {
@@ -464,12 +480,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ref
+              await ref
                   .read(eventsProvider.notifier)
                   .deleteMultiple(_selectedIds.toList());
               _exitMultiSelect();
+              ref.invalidate(eventsProvider);
             },
             child: const Text('删除'),
           ),
@@ -478,28 +495,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _confirmDelete(Event event) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除「${event.name}」吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ref.read(eventsProvider.notifier).deleteEvent(event.id!);
-            },
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _EventSearchDelegate extends SearchDelegate<String> {

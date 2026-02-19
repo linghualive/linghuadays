@@ -110,14 +110,19 @@ void main() {
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
     });
 
-    testWidgets('焦点卡片使用大号布局', (tester) async {
+    testWidgets('网格卡片显示标题栏文字', (tester) async {
+      final futureDate = DateTime.now().add(const Duration(days: 10));
       await tester.pumpWidget(wrapWithMaterial(
-        EventCard(
-          event: createEvent(name: '焦点事件'),
-          isFocusCard: true,
+        SizedBox(
+          width: 180,
+          height: 220,
+          child: EventCard(
+            event: createEvent(name: '春节', targetDate: futureDate),
+            isGridCard: true,
+          ),
         ),
       ));
-      expect(find.text('焦点事件'), findsOneWidget);
+      expect(find.text('春节 还有'), findsOneWidget);
     });
 
     testWidgets('点击触发 onTap', (tester) async {
@@ -144,51 +149,31 @@ void main() {
       expect(longPressed, true);
     });
 
-    testWidgets('应用简约风格', (tester) async {
+    testWidgets('应用浅粉风格', (tester) async {
       await tester.pumpWidget(wrapWithMaterial(
         EventCard(
           event: createEvent(),
-          style: CardStyle.presets[0], // 简约
+          style: CardStyle.presets[0], // 浅粉
         ),
       ));
       expect(find.byType(EventCard), findsOneWidget);
     });
 
-    testWidgets('应用渐变风格', (tester) async {
+    testWidgets('应用烟粉渐变风格', (tester) async {
       await tester.pumpWidget(wrapWithMaterial(
         EventCard(
           event: createEvent(),
-          style: CardStyle.presets[1], // 渐变
+          style: CardStyle.presets[8], // 烟粉
         ),
       ));
       expect(find.byType(EventCard), findsOneWidget);
     });
 
-    testWidgets('应用玻璃拟态风格', (tester) async {
+    testWidgets('应用暮色渐变风格', (tester) async {
       await tester.pumpWidget(wrapWithMaterial(
         EventCard(
           event: createEvent(),
-          style: CardStyle.presets[2], // 玻璃拟态
-        ),
-      ));
-      expect(find.byType(EventCard), findsOneWidget);
-    });
-
-    testWidgets('应用深邃风格', (tester) async {
-      await tester.pumpWidget(wrapWithMaterial(
-        EventCard(
-          event: createEvent(),
-          style: CardStyle.presets[4], // 深邃
-        ),
-      ));
-      expect(find.byType(EventCard), findsOneWidget);
-    });
-
-    testWidgets('应用节日风格', (tester) async {
-      await tester.pumpWidget(wrapWithMaterial(
-        EventCard(
-          event: createEvent(),
-          style: CardStyle.presets[6], // 节日
+          style: CardStyle.presets[11], // 暮色
         ),
       ));
       expect(find.byType(EventCard), findsOneWidget);

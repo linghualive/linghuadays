@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseHelper {
   static const String databaseName = 'daysmater.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   Database? _database;
 
@@ -68,6 +68,7 @@ class DatabaseHelper {
         overlay_opacity REAL NOT NULL DEFAULT 0.0,
         text_color INTEGER NOT NULL,
         number_color INTEGER NOT NULL,
+        header_color INTEGER NOT NULL DEFAULT 0xFF78909C,
         font_family TEXT NOT NULL DEFAULT 'default',
         card_border_radius REAL NOT NULL DEFAULT 16.0,
         is_preset INTEGER NOT NULL DEFAULT 0
@@ -113,7 +114,13 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // 版本迁移逻辑，后续版本在此添加
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE card_styles ADD COLUMN header_color INTEGER NOT NULL DEFAULT 0xFF78909C',
+      );
+      // 删除旧预设，新预设将由 initPresets 重新插入
+      await db.delete('card_styles', where: 'is_preset = 1');
+    }
   }
 
   // 通用 CRUD 方法

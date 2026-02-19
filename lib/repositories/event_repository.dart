@@ -88,28 +88,6 @@ class EventRepository {
     }
   }
 
-  Future<Event?> getFocusEvent() async {
-    final results = await _dbHelper.query(
-      _table,
-      where: 'is_focus = ?',
-      whereArgs: [1],
-    );
-    if (results.isEmpty) return null;
-    return Event.fromMap(results.first);
-  }
-
-  Future<void> setFocus(int eventId) async {
-    // 先清除所有事件的 focus 状态
-    final db = await _dbHelper.database;
-    await db.rawUpdate('UPDATE $_table SET is_focus = 0 WHERE is_focus = 1');
-
-    // 设置新的 focus 事件
-    final event = await getById(eventId);
-    if (event != null) {
-      await update(event.copyWith(isFocus: true));
-    }
-  }
-
   Future<void> togglePin(int eventId) async {
     final event = await getById(eventId);
     if (event != null) {

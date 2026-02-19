@@ -31,7 +31,6 @@ void main() {
       expect(restored.calendarType, 'solar');
       expect(restored.isRepeating, false);
       expect(restored.isPinned, false);
-      expect(restored.isFocus, false);
     });
 
     test('toJson 和 fromJson 序列化往返正确', () {
@@ -48,7 +47,6 @@ void main() {
         note: '准备礼物',
         isRepeating: true,
         isPinned: true,
-        isFocus: false,
         styleId: 3,
         createdAt: now,
         updatedAt: now,
@@ -83,7 +81,6 @@ void main() {
         calendarType: 'solar',
         isRepeating: true,
         isPinned: true,
-        isFocus: true,
         isLeapMonth: true,
         createdAt: now,
         updatedAt: now,
@@ -92,7 +89,6 @@ void main() {
       final map = event.toMap();
       expect(map['is_repeating'], 1);
       expect(map['is_pinned'], 1);
-      expect(map['is_focus'], 1);
       expect(map['is_leap_month'], 1);
     });
 

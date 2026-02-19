@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/event.dart';
 import '../repositories/event_repository.dart';
@@ -79,18 +80,34 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     await repo.togglePin(eventId);
     ref.invalidateSelf();
   }
-
-  Future<void> setFocus(int eventId) async {
-    final repo = ref.read(eventRepositoryProvider);
-    await repo.setFocus(eventId);
-    ref.invalidateSelf();
-  }
 }
 
-// 焦点事件
-final focusEventProvider = FutureProvider<Event?>((ref) async {
-  // 依赖 eventsProvider 确保数据刷新时同步更新
-  ref.watch(eventsProvider);
-  final repo = ref.watch(eventRepositoryProvider);
-  return repo.getFocusEvent();
+// 视图模式
+enum ViewMode { list, grid }
+
+const _viewModeKey = 'view_mode';
+
+final viewModeProvider =
+    StateNotifierProvider<ViewModeNotifier, ViewMode>((ref) {
+  return ViewModeNotifier();
 });
+
+class ViewModeNotifier extends StateNotifier<ViewMode> {
+  ViewModeNotifier() : super(ViewMode.list) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_viewModeKey);
+    if (value != null) {
+      state = ViewMode.values.byName(value);
+    }
+  }
+
+  Future<void> toggle() async {
+    state = state == ViewMode.list ? ViewMode.grid : ViewMode.list;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_viewModeKey, state.name);
+  }
+}

@@ -11,7 +11,6 @@ class Event {
   final String? note;
   final bool isRepeating;
   final bool isPinned;
-  final bool isFocus;
   final int? styleId;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -34,7 +33,6 @@ class Event {
     this.note,
     this.isRepeating = false,
     this.isPinned = false,
-    this.isFocus = false,
     this.styleId,
     required this.createdAt,
     required this.updatedAt,
@@ -56,7 +54,6 @@ class Event {
     String? Function()? note,
     bool? isRepeating,
     bool? isPinned,
-    bool? isFocus,
     int? Function()? styleId,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -77,7 +74,6 @@ class Event {
       note: note != null ? note() : this.note,
       isRepeating: isRepeating ?? this.isRepeating,
       isPinned: isPinned ?? this.isPinned,
-      isFocus: isFocus ?? this.isFocus,
       styleId: styleId != null ? styleId() : this.styleId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -105,7 +101,6 @@ class Event {
       'note': note,
       'is_repeating': isRepeating ? 1 : 0,
       'is_pinned': isPinned ? 1 : 0,
-      'is_focus': isFocus ? 1 : 0,
       'style_id': styleId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -129,7 +124,6 @@ class Event {
       note: map['note'] as String?,
       isRepeating: (map['is_repeating'] as int?) == 1,
       isPinned: (map['is_pinned'] as int?) == 1,
-      isFocus: (map['is_focus'] as int?) == 1,
       styleId: map['style_id'] as int?,
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),

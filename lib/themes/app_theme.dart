@@ -8,7 +8,7 @@ enum ThemeModeSetting {
 }
 
 class AppTheme {
-  static const Color _seedColor = Color(0xFF6750A4);
+  static const Color _seedColor = Color(0xFFD4869C);
 
   static ThemeData lightTheme({Color? seedColor}) {
     final colorScheme = ColorScheme.fromSeed(
@@ -161,10 +161,14 @@ class AppTheme {
   /// 内置字体名称列表（显示名 -> fontFamily 值）
   static const Map<String, String> availableFonts = {
     '系统默认': 'default',
-    '等宽数字': 'RobotoMono',
-    '圆体': 'ZenMaruGothic',
-    '手写体': 'MaShanZheng',
-    '衬线体': 'NotoSerifSC',
-    '像素字体': 'PressStart2P',
+    '手写': 'Caveat',
+    '花体': 'DancingScript',
+    '圆趣': 'ZCOOLQingKeHuangYou',
+    '快乐': 'ZCOOLKuaiLe',
+    '书法': 'MaShanZheng',
+    '行草': 'LiuJianMaoCao',
+    '龙藏': 'LongCang',
+    '复古': 'PlayfairDisplay',
+    '像素': 'PressStart2P',
   };
 }

@@ -16,10 +16,11 @@ class StylesNotifier extends AsyncNotifier<List<CardStyle>> {
     return repo.getAll();
   }
 
-  Future<void> addStyle(CardStyle style) async {
+  Future<int> addStyle(CardStyle style) async {
     final repo = ref.read(styleRepositoryProvider);
-    await repo.insert(style);
+    final id = await repo.insert(style);
     ref.invalidateSelf();
+    return id;
   }
 
   Future<void> updateStyle(CardStyle style) async {

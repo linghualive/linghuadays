@@ -28,7 +28,6 @@ void main() {
     String name = '测试事件',
     DateTime? targetDate,
     bool isPinned = false,
-    bool isFocus = false,
     int? categoryId,
   }) {
     final now = DateTime.now();
@@ -37,7 +36,6 @@ void main() {
       targetDate: targetDate ?? DateTime(2026, 12, 31),
       calendarType: 'solar',
       isPinned: isPinned,
-      isFocus: isFocus,
       categoryId: categoryId,
       createdAt: now,
       updatedAt: now,
@@ -166,24 +164,6 @@ void main() {
       final events = await repo.getAll();
       expect(events.length, 1);
       expect(events.first.name, 'C');
-    });
-
-    test('setFocus 设置焦点事件', () async {
-      final id1 = await repo.insert(createEvent(name: 'A'));
-      final id2 = await repo.insert(createEvent(name: 'B'));
-
-      await repo.setFocus(id1);
-      var focus = await repo.getFocusEvent();
-      expect(focus!.id, id1);
-
-      // 切换焦点到另一个事件
-      await repo.setFocus(id2);
-      focus = await repo.getFocusEvent();
-      expect(focus!.id, id2);
-
-      // 原来的事件不再是焦点
-      final old = await repo.getById(id1);
-      expect(old!.isFocus, false);
     });
 
     test('togglePin 切换置顶', () async {

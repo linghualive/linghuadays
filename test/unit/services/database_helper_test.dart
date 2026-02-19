@@ -140,7 +140,7 @@ void main() {
         'is_leap_month': 0,
         'is_repeating': 0,
         'is_pinned': 0,
-        'is_focus': 0,
+
         'created_at': now,
         'updated_at': now,
       });
@@ -168,7 +168,7 @@ void main() {
         'is_leap_month': 0,
         'is_repeating': 0,
         'is_pinned': 0,
-        'is_focus': 0,
+
         'created_at': now,
         'updated_at': now,
       });
@@ -184,7 +184,7 @@ void main() {
           'is_leap_month': 0,
           'is_repeating': 0,
           'is_pinned': 0,
-          'is_focus': 0,
+  
           'created_at': now,
           'updated_at': now,
         },

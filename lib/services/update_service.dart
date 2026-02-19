@@ -51,8 +51,8 @@ class UpdateService {
 
   /// GitHub API URLs with fallback mirrors for Chinese users.
   static const List<String> _apiUrls = [
+    'https://gh-proxy.com/https://api.github.com/repos/$_owner/$_repo/releases/latest',
     'https://api.github.com/repos/$_owner/$_repo/releases/latest',
-    'https://ghfast.top/https://api.github.com/repos/$_owner/$_repo/releases/latest',
   ];
 
   // --- Skipped version persistence ---
@@ -177,8 +177,21 @@ class UpdateService {
   }
 
   /// Get a mirror download URL for Chinese users.
+  /// Download mirror prefixes (fast CDN first, slower proxy second).
+  static const List<String> _downloadMirrors = [
+    'https://ghfast.top/',
+    'https://gh-proxy.com/',
+  ];
+
   String getMirrorDownloadUrl(String originalUrl) {
-    return 'https://ghfast.top/$originalUrl';
+    return '${_downloadMirrors.first}$originalUrl';
+  }
+
+  List<String> _getDownloadUrls(String originalUrl) {
+    return [
+      for (final mirror in _downloadMirrors) '$mirror$originalUrl',
+      originalUrl,
+    ];
   }
 
   // --- Auto check (startup) ---
@@ -340,8 +353,7 @@ class UpdateService {
     final downloadState = ValueNotifier<_DownloadState>(_DownloadState.downloading);
     CancelToken? cancelToken = CancelToken();
 
-    // Try mirror first, fallback to original
-    final downloadUrl = getMirrorDownloadUrl(apk.downloadUrl);
+    final urls = _getDownloadUrls(apk.downloadUrl);
 
     showModalBottomSheet(
       context: context,
@@ -359,8 +371,7 @@ class UpdateService {
           downloadProgress.value = 0.0;
           cancelToken = CancelToken();
           _startDownload(
-            url: downloadUrl,
-            fallbackUrl: apk.downloadUrl,
+            urls: urls,
             progress: downloadProgress,
             state: downloadState,
             cancelToken: cancelToken!,
@@ -370,8 +381,7 @@ class UpdateService {
     );
 
     _startDownload(
-      url: downloadUrl,
-      fallbackUrl: apk.downloadUrl,
+      urls: urls,
       progress: downloadProgress,
       state: downloadState,
       cancelToken: cancelToken!,
@@ -379,8 +389,7 @@ class UpdateService {
   }
 
   Future<void> _startDownload({
-    required String url,
-    required String fallbackUrl,
+    required List<String> urls,
     required ValueNotifier<double> progress,
     required ValueNotifier<_DownloadState> state,
     required CancelToken cancelToken,
@@ -388,42 +397,32 @@ class UpdateService {
     try {
       final dir = await getTemporaryDirectory();
       final filePath = '${dir.path}/daysmater_update.apk';
-
       final dio = Dio();
 
-      // Try mirror URL first
-      try {
-        await dio.download(
-          url,
-          filePath,
-          cancelToken: cancelToken,
-          onReceiveProgress: (received, total) {
-            if (total > 0) {
-              progress.value = received / total;
-            }
-          },
-        );
-      } catch (e) {
-        if (cancelToken.isCancelled) return;
-        // Mirror failed, try original URL
-        progress.value = 0.0;
-        await dio.download(
-          fallbackUrl,
-          filePath,
-          cancelToken: cancelToken,
-          onReceiveProgress: (received, total) {
-            if (total > 0) {
-              progress.value = received / total;
-            }
-          },
-        );
+      // Try each mirror URL in order
+      for (var i = 0; i < urls.length; i++) {
+        try {
+          progress.value = 0.0;
+          await dio.download(
+            urls[i],
+            filePath,
+            cancelToken: cancelToken,
+            onReceiveProgress: (received, total) {
+              if (total > 0) {
+                progress.value = received / total;
+              }
+            },
+          );
+          break; // Download succeeded
+        } catch (e) {
+          if (cancelToken.isCancelled) return;
+          if (i == urls.length - 1) rethrow; // All mirrors failed
+        }
       }
 
       if (cancelToken.isCancelled) return;
 
       state.value = _DownloadState.installing;
-
-      // Call native to install APK
       await _channel.invokeMethod('installApk', {'path': filePath});
     } catch (e) {
       if (!cancelToken.isCancelled) {

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../providers/category_provider.dart';
 import '../providers/event_provider.dart';
@@ -133,6 +134,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             subtitle: const Text('从 GitHub 获取最新版本'),
             onTap: _checkingUpdate ? null : _checkForUpdate,
           ),
+          ListTile(
+            leading: const Icon(Icons.share_outlined),
+            title: const Text('推荐给朋友'),
+            subtitle: const Text('分享玲华倒数给好友'),
+            onTap: () {
+              Share.share(
+                '推荐一个好用的倒数日 App「玲华倒数」，快来试试吧！\nhttps://github.com/linghualive/linghuadays/releases',
+              );
+            },
+          ),
         ],
       ),
     );
@@ -204,18 +215,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _showColorPicker(BuildContext context, Color? currentColor) {
     final presetColors = <Color>[
-      const Color(0xFF6750A4), // M3 default purple
-      const Color(0xFF006A6A), // Teal
-      const Color(0xFF006E1C), // Green
-      const Color(0xFF0061A4), // Blue
-      const Color(0xFF9C4146), // Red
-      const Color(0xFFBA1A1A), // Error red
-      const Color(0xFF7D5260), // Pink
-      const Color(0xFF6B5778), // Mauve
-      const Color(0xFF4A6267), // Slate
-      const Color(0xFFFF6F00), // Orange
-      const Color(0xFF795548), // Brown
-      const Color(0xFF37474F), // Blue grey
+      const Color(0xFFD4869C), // 浅粉
+      const Color(0xFF9B8EC4), // 淡紫
+      const Color(0xFF7B9CB8), // 雾蓝
+      const Color(0xFF6B8F7B), // 墨绿
+      const Color(0xFFB8849A), // 烟粉
+      const Color(0xFF8FA67A), // 抹茶
+      const Color(0xFFC09080), // 玫瑰金
+      const Color(0xFFC4A882), // 奶油
+      const Color(0xFFD4937A), // 蜜桃
+      const Color(0xFF9A9A8C), // 莫兰迪
+      const Color(0xFF8B79AD), // 薰衣草
+      const Color(0xFF7B6E92), // 暮色
     ];
 
     showDialog(
@@ -230,7 +241,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               runSpacing: 12,
               children: presetColors.map((color) {
                 final isSelected = currentColor == color ||
-                    (currentColor == null && color == const Color(0xFF6750A4));
+                    (currentColor == null && color == const Color(0xFFD4869C));
                 return GestureDetector(
                   onTap: () {
                     ref.read(seedColorProvider.notifier).setSeedColor(color);

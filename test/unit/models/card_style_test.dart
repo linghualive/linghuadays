@@ -6,11 +6,12 @@ void main() {
     test('toMap 和 fromMap 序列化往返正确', () {
       const style = CardStyle(
         id: 1,
-        styleName: '简约',
+        styleName: '浅粉',
         styleType: StyleType.simple,
-        backgroundColor: 0xFFF5F5F5,
-        textColor: 0xFF212121,
-        numberColor: 0xFF1565C0,
+        backgroundColor: 0xFFFFF0F3,
+        textColor: 0xFF5D4350,
+        numberColor: 0xFFB85C7A,
+        headerColor: 0xFFD4869C,
         fontFamily: 'default',
         cardBorderRadius: 16.0,
         isPreset: true,
@@ -20,11 +21,12 @@ void main() {
       final restored = CardStyle.fromMap(map);
 
       expect(restored.id, 1);
-      expect(restored.styleName, '简约');
+      expect(restored.styleName, '浅粉');
       expect(restored.styleType, StyleType.simple);
-      expect(restored.backgroundColor, 0xFFF5F5F5);
-      expect(restored.textColor, 0xFF212121);
-      expect(restored.numberColor, 0xFF1565C0);
+      expect(restored.backgroundColor, 0xFFFFF0F3);
+      expect(restored.textColor, 0xFF5D4350);
+      expect(restored.numberColor, 0xFFB85C7A);
+      expect(restored.headerColor, 0xFFD4869C);
       expect(restored.fontFamily, 'default');
       expect(restored.cardBorderRadius, 16.0);
       expect(restored.isPreset, true);
@@ -63,22 +65,17 @@ void main() {
       expect(restored.gradientColors, isNull);
     });
 
-    test('预设风格包含7种', () {
+    test('预设风格包含12种', () {
       final presets = CardStyle.presets;
-      expect(presets.length, 7);
+      expect(presets.length, 12);
     });
 
-    test('预设风格包含所有类型', () {
+    test('预设风格包含 simple 和 gradient 类型', () {
       final presets = CardStyle.presets;
       final types = presets.map((s) => s.styleType).toSet();
 
       expect(types, contains(StyleType.simple));
       expect(types, contains(StyleType.gradient));
-      expect(types, contains(StyleType.glass));
-      expect(types, contains(StyleType.shadow));
-      expect(types, contains(StyleType.neon));
-      expect(types, contains(StyleType.handdrawn));
-      expect(types, contains(StyleType.festival));
     });
 
     test('所有预设风格 isPreset 为 true', () {
@@ -134,9 +131,27 @@ void main() {
       expect(style.overlayOpacity, 0.0);
       expect(style.fontFamily, 'default');
       expect(style.cardBorderRadius, 16.0);
+      expect(style.headerColor, 0xFF78909C);
       expect(style.isPreset, false);
       expect(style.backgroundImagePath, isNull);
       expect(style.gradientColors, isNull);
+    });
+
+    test('headerColor 序列化往返正确', () {
+      const style = CardStyle(
+        styleName: '测试',
+        styleType: StyleType.simple,
+        backgroundColor: 0xFFFFFFFF,
+        textColor: 0xFF000000,
+        numberColor: 0xFF000000,
+        headerColor: 0xFFD4869C,
+      );
+
+      final map = style.toMap();
+      expect(map['header_color'], 0xFFD4869C);
+
+      final restored = CardStyle.fromMap(map);
+      expect(restored.headerColor, 0xFFD4869C);
     });
   });
 }
