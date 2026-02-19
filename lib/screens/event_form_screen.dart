@@ -578,7 +578,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         reminderHour: () => reminderH,
         reminderMinute: () => reminderM,
       );
-      await ref.read(eventsProvider.notifier).updateEvent(updated);
+      ref.read(eventsProvider.notifier).updateEvent(updated);
     } else {
       final event = Event(
         name: _nameController.text.trim(),
@@ -600,7 +600,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         reminderHour: reminderH,
         reminderMinute: reminderM,
       );
-      await ref.read(eventsProvider.notifier).addEvent(event);
+      ref.read(eventsProvider.notifier).addEvent(event);
     }
 
     if (mounted) Navigator.pop(context);
