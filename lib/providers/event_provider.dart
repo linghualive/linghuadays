@@ -63,7 +63,10 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     final repo = ref.read(eventRepositoryProvider);
     await repo.delete(id);
     await NotificationService().cancelForEvent(id);
-    ref.invalidateSelf();
+    // 直接更新本地状态，避免 invalidateSelf 导致的异步延迟
+    state = AsyncData(
+      state.valueOrNull?.where((e) => e.id != id).toList() ?? [],
+    );
   }
 
   Future<void> deleteMultiple(List<int> ids) async {
@@ -72,7 +75,10 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     for (final id in ids) {
       await NotificationService().cancelForEvent(id);
     }
-    ref.invalidateSelf();
+    final idSet = ids.toSet();
+    state = AsyncData(
+      state.valueOrNull?.where((e) => !idSet.contains(e.id)).toList() ?? [],
+    );
   }
 
   Future<void> togglePin(int eventId) async {
