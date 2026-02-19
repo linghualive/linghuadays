@@ -32,7 +32,7 @@ class DaysMaterApp extends ConsumerWidget {
         }
 
         return MaterialApp.router(
-          title: 'DaysMater',
+          title: '玲华倒数',
           debugShowCheckedModeBanner: false,
           theme: lightTheme,
           darkTheme: darkTheme,

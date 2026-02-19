@@ -94,7 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   AppBar _buildNormalAppBar(ThemeData theme, EventSortType sortType) {
     return AppBar(
-      title: const Text('DaysMater'),
+      title: const Text('玲华倒数'),
       actions: [
         IconButton(
           icon: const Icon(Icons.search),

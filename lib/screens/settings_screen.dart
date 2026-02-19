@@ -118,7 +118,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildSectionHeader('关于', theme),
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('DaysMater'),
+            title: const Text('玲华倒数'),
             subtitle: Text('版本 $_appVersion'),
           ),
           ListTile(

@@ -103,6 +103,17 @@ class UpdateService {
         if (response.statusCode == 200) {
           return _parseRelease(response.body, currentVersion);
         }
+        // 404 means no releases exist — treat as "already latest"
+        if (response.statusCode == 404) {
+          return AppUpdateInfo(
+            latestVersion: currentVersion,
+            currentVersion: currentVersion,
+            releaseNotes: '',
+            htmlUrl: '',
+            assets: const [],
+            hasUpdate: false,
+          );
+        }
       } catch (_) {
         continue;
       }
