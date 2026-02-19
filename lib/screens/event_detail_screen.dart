@@ -17,6 +17,7 @@ import '../models/event.dart';
 import '../providers/category_provider.dart';
 import '../providers/event_provider.dart';
 import '../providers/style_provider.dart';
+import '../providers/database_provider.dart';
 import '../services/date_calculation_service.dart';
 import '../services/lunar_service.dart';
 
@@ -63,11 +64,13 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   int? _selectedStyleId;
   int _selectedFontIndex = 0;
   int _displayMode = 0; // 0=天, 1=年月天, 2=月天, 3=周天
+  late Event _event;
 
   @override
   void initState() {
     super.initState();
-    _selectedStyleId = widget.event.styleId;
+    _event = widget.event;
+    _selectedStyleId = _event.styleId;
   }
 
   @override
@@ -75,12 +78,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     final theme = Theme.of(context);
     final categories = ref.watch(categoriesProvider).valueOrNull ?? [];
     final styles = ref.watch(stylesProvider).valueOrNull ?? [];
-    final category = widget.event.categoryId != null
-        ? categories.where((c) => c.id == widget.event.categoryId).firstOrNull
+    final category = _event.categoryId != null
+        ? categories.where((c) => c.id == _event.categoryId).firstOrNull
         : null;
 
     final calcService = DateCalculationService();
-    final effectiveDate = _getEffectiveDate(widget.event, calcService);
+    final effectiveDate = _getEffectiveDate(_event, calcService);
     final days = calcService.daysUntil(effectiveDate);
 
     final font = fontPresets[_selectedFontIndex];
@@ -104,7 +107,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            onPressed: () => context.pushNamed('editEvent', extra: widget.event),
+            onPressed: () async {
+              await context.pushNamed('editEvent', extra: _event);
+              if (!mounted) return;
+              final repo = ref.read(eventRepositoryProvider);
+              final updated = await repo.getById(_event.id!);
+              if (updated != null && mounted) {
+                setState(() {
+                  _event = updated;
+                  _selectedStyleId = updated.styleId;
+                });
+              }
+            },
           ),
         ],
       ),
@@ -149,7 +163,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       icon: Icons.timer_outlined,
                       label: '倒计时',
                       onPressed: () =>
-                          context.pushNamed('countdown', extra: widget.event),
+                          context.pushNamed('countdown', extra: _event),
                     ),
                 ],
               ),
@@ -220,8 +234,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             color: headerColor,
             child: Text(
               days >= 0
-                  ? '距离${widget.event.name}还有'
-                  : '${widget.event.name}已经',
+                  ? '距离${_event.name}还有'
+                  : '${_event.name}已经',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: _contrastTextColor(headerColor),
                 fontWeight: FontWeight.w600,
@@ -267,7 +281,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     child: Text(
-                      '${widget.event.isRepeating ? "目标日" : "起始日"}: ${_formatTargetDate(effectiveDate)}',
+                      '${_event.isRepeating ? "目标日" : "起始日"}: ${_formatTargetDate(effectiveDate)}',
                       style: theme.textTheme.bodyMedium?.copyWith(color: dateColor),
                     ),
                   ),
@@ -622,7 +636,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     if (!bgDir.existsSync()) bgDir.createSync(recursive: true);
     final ext = p.extension(picked.path);
     final savedPath =
-        '${bgDir.path}/bg_${widget.event.id}_${DateTime.now().millisecondsSinceEpoch}$ext';
+        '${bgDir.path}/bg_${_event.id}_${DateTime.now().millisecondsSinceEpoch}$ext';
     await File(picked.path).copy(savedPath);
 
     // 沿用当前样式的标题颜色
@@ -647,11 +661,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   }
 
   void _updateEventStyle(int styleId) {
-    setState(() => _selectedStyleId = styleId);
-    final updated = widget.event.copyWith(
+    final updated = _event.copyWith(
       styleId: () => styleId,
       updatedAt: DateTime.now(),
     );
+    setState(() {
+      _selectedStyleId = styleId;
+      _event = updated;
+    });
     ref.read(eventsProvider.notifier).updateEvent(updated);
   }
 
@@ -698,11 +715,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
     final style = _findCurrentStyle(styles);
     final font = fontPresets[_selectedFontIndex];
     final categories = ref.read(categoriesProvider).valueOrNull ?? [];
-    final category = widget.event.categoryId != null
-        ? categories.where((c) => c.id == widget.event.categoryId).firstOrNull
+    final category = _event.categoryId != null
+        ? categories.where((c) => c.id == _event.categoryId).firstOrNull
         : null;
     final calcService = DateCalculationService();
-    final effectiveDate = _getEffectiveDate(widget.event, calcService);
+    final effectiveDate = _getEffectiveDate(_event, calcService);
     final days = calcService.daysUntil(effectiveDate);
     final headerColor = (_selectedStyleId == null && category != null)
         ? category.color
@@ -823,14 +840,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
     final hsl = HSLColor.fromColor(Color(style.headerColor));
     if (_isLightBackground(Color(style.backgroundColor))) {
-      // 浅色卡片 → 极淡的 headerColor 色调
-      return hsl.withSaturation((hsl.saturation * 0.3).clamp(0.0, 1.0))
-          .withLightness(0.95)
+      // 浅色卡片 → 柔和但可辨识的 headerColor 色调
+      return hsl.withSaturation((hsl.saturation * 0.5).clamp(0.0, 1.0))
+          .withLightness(0.90)
           .toColor();
     }
     // 深色卡片 → 深色背景
-    return hsl.withSaturation((hsl.saturation * 0.2).clamp(0.0, 1.0))
-        .withLightness(0.12)
+    return hsl.withSaturation((hsl.saturation * 0.3).clamp(0.0, 1.0))
+        .withLightness(0.15)
         .toColor();
   }
 
@@ -849,15 +866,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
   // ---- 日期格式化 ----
 
   String _formatTargetDate(DateTime displayDate) {
-    if (widget.event.calendarType == 'lunar' &&
-        widget.event.lunarYear != null &&
-        widget.event.lunarMonth != null &&
-        widget.event.lunarDay != null) {
+    if (_event.calendarType == 'lunar' &&
+        _event.lunarYear != null &&
+        _event.lunarMonth != null &&
+        _event.lunarDay != null) {
       final lunarStr = LunarService().getLunarDateString(
-        widget.event.lunarYear!,
-        widget.event.lunarMonth!,
-        widget.event.lunarDay!,
-        isLeapMonth: widget.event.isLeapMonth,
+        _event.lunarYear!,
+        _event.lunarMonth!,
+        _event.lunarDay!,
+        isLeapMonth: _event.isLeapMonth,
       );
       final solarStr = DateFormat('yyyy-MM-dd').format(displayDate);
       return '$lunarStr ($solarStr)';

@@ -538,7 +538,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     );
   }
 
-  void _onSave() {
+  Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_solarDate == null) {
@@ -547,6 +547,9 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       );
       return;
     }
+
+    // 如果没有选择样式，自动分配第一个预设样式
+    final effectiveStyleId = _styleId ?? _getDefaultStyleId();
 
     final now = DateTime.now();
 
@@ -569,13 +572,13 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
                 ? null
                 : _noteController.text.trim(),
         isRepeating: _isRepeating,
-        styleId: () => _styleId,
+        styleId: () => effectiveStyleId,
         updatedAt: now,
         reminderDaysBefore: () => reminderDays,
         reminderHour: () => reminderH,
         reminderMinute: () => reminderM,
       );
-      ref.read(eventsProvider.notifier).updateEvent(updated);
+      await ref.read(eventsProvider.notifier).updateEvent(updated);
     } else {
       final event = Event(
         name: _nameController.text.trim(),
@@ -590,16 +593,23 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
             ? null
             : _noteController.text.trim(),
         isRepeating: _isRepeating,
-        styleId: _styleId,
+        styleId: effectiveStyleId,
         createdAt: now,
         updatedAt: now,
         reminderDaysBefore: reminderDays,
         reminderHour: reminderH,
         reminderMinute: reminderM,
       );
-      ref.read(eventsProvider.notifier).addEvent(event);
+      await ref.read(eventsProvider.notifier).addEvent(event);
     }
 
-    Navigator.pop(context);
+    if (mounted) Navigator.pop(context);
+  }
+
+  int? _getDefaultStyleId() {
+    final styles = ref.read(stylesProvider).valueOrNull;
+    if (styles == null || styles.isEmpty) return null;
+    final firstPreset = styles.where((s) => s.isPreset).firstOrNull;
+    return firstPreset?.id ?? styles.first.id;
   }
 }
