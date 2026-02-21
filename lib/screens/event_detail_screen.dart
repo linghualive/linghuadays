@@ -22,6 +22,7 @@ import '../providers/database_provider.dart';
 import '../services/date_calculation_service.dart';
 import '../services/lunar_service.dart';
 import '../services/widget_service.dart';
+import 'package:home_widget/home_widget.dart';
 
 // ---- 字体预设 ----
 
@@ -425,11 +426,32 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
 
   Future<void> _addToWidget() async {
     await WidgetService().updateWidget(_event);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已更新桌面小组件')),
+    try {
+      await HomeWidget.requestPinWidget(
+        androidName: 'CountdownWidgetProvider',
+        qualifiedAndroidName: 'com.daysmater.daysmater.CountdownWidgetProvider',
       );
+    } catch (_) {
+      // 部分设备不支持 requestPinWidget
     }
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('添加桌面小组件'),
+        content: Text(
+          '已将「${_event.name}」设为小组件展示内容。\n\n'
+          '如果桌面未自动弹出确认，请手动添加：\n'
+          '长按桌面空白处 → 小组件 → 找到「玲华倒数」拖到桌面',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ---- 样式选择 ----

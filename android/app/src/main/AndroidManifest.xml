@@ -42,6 +42,8 @@
         <!-- 桌面小组件 -->
         <receiver
             android:name=".CountdownWidgetProvider"
+            android:label="玲华倒数"
+            android:icon="@mipmap/ic_launcher"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
