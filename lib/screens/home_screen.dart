@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +9,7 @@ import '../models/card_style.dart';
 import '../models/category.dart';
 import '../models/event.dart';
 import '../providers/category_provider.dart';
+import '../providers/database_provider.dart';
 import '../providers/event_provider.dart';
 import '../providers/style_provider.dart';
 import '../repositories/event_repository.dart';
@@ -363,11 +365,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.invalidate(eventsProvider);
   }
 
-  void _showSearch() {
-    showSearch(
+  void _showSearch() async {
+    final result = await showSearch<String>(
       context: context,
       delegate: _EventSearchDelegate(ref),
     );
+    if (result != null && result.isNotEmpty && mounted) {
+      final id = int.tryParse(result);
+      if (id != null) {
+        final repo = ref.read(eventRepositoryProvider);
+        final event = await repo.getById(id);
+        if (event != null && mounted) {
+          await context.pushNamed('eventDetail', extra: event);
+          ref.invalidate(eventsProvider);
+        }
+      }
+    }
   }
 
   Future<bool> _confirmDismiss(Event event) async {
@@ -382,6 +395,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Text('取消'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('删除'),
           ),
@@ -390,13 +407,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     if (result == true) {
+      HapticFeedback.heavyImpact();
       await ref.read(eventsProvider.notifier).deleteEvent(event.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除「${event.name}」')),
+        );
+      }
       return true;
     }
     return false;
   }
 
   void _showContextMenu(BuildContext context, Event event) {
+    HapticFeedback.selectionClick();
     final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
@@ -407,9 +431,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('编辑'),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(ctx);
-                context.pushNamed('editEvent', extra: event);
+                await context.pushNamed('editEvent', extra: event);
+                ref.invalidate(eventsProvider);
               },
             ),
             ListTile(
@@ -421,6 +446,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: Text(event.isPinned ? '取消置顶' : '置顶'),
               onTap: () async {
                 Navigator.pop(ctx);
+                HapticFeedback.lightImpact();
                 await ref
                     .read(eventsProvider.notifier)
                     .togglePin(event.id!);
@@ -519,7 +545,7 @@ class _EventSearchDelegate extends SearchDelegate<String> {
                     onTap: () {
                       ref.read(eventSearchQueryProvider.notifier).state =
                           null;
-                      close(context, '');
+                      close(context, event.id.toString());
                     },
                   ),
                 );

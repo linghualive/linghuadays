@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/event.dart';
 import '../repositories/event_repository.dart';
 import '../services/notification_service.dart';
+import '../services/widget_service.dart';
 import 'database_provider.dart';
 
 // 排序方式状态
@@ -21,6 +22,8 @@ final eventsProvider =
     AsyncNotifierProvider<EventsNotifier, List<Event>>(EventsNotifier.new);
 
 class EventsNotifier extends AsyncNotifier<List<Event>> {
+  final _widgetService = WidgetService();
+
   @override
   Future<List<Event>> build() async {
     final repo = ref.watch(eventRepositoryProvider);
@@ -28,11 +31,16 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     final categoryId = ref.watch(eventCategoryFilterProvider);
     final searchQuery = ref.watch(eventSearchQueryProvider);
 
-    return repo.getAll(
+    final events = await repo.getAll(
       sortType: sortType,
       categoryId: categoryId,
       searchQuery: searchQuery,
     );
+
+    // 同步小组件数据
+    _syncWidget(events);
+
+    return events;
   }
 
   Future<void> addEvent(Event event) async {
@@ -88,6 +96,11 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     final repo = ref.read(eventRepositoryProvider);
     await repo.togglePin(eventId);
     ref.invalidateSelf();
+  }
+
+  void _syncWidget(List<Event> events) {
+    _widgetService.saveAllEvents(events);
+    _widgetService.refreshWidget();
   }
 }
 

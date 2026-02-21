@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_description">显示倒数日事件的剩余天数</string>
+    <string name="widget_configure_title">选择倒数日</string>
+    <string name="widget_no_events">暂无倒数日，请先在App中创建</string>
+</resources>

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,6 +21,7 @@ import '../providers/style_provider.dart';
 import '../providers/database_provider.dart';
 import '../services/date_calculation_service.dart';
 import '../services/lunar_service.dart';
+import '../services/widget_service.dart';
 
 // ---- 字体预设 ----
 
@@ -165,6 +167,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                       onPressed: () =>
                           context.pushNamed('countdown', extra: _event),
                     ),
+                  if (Platform.isAndroid)
+                    _ActionButton(
+                      icon: Icons.widgets_outlined,
+                      label: '桌面',
+                      onPressed: () => _addToWidget(),
+                    ),
                 ],
               ),
             ),
@@ -233,9 +241,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             color: headerColor,
             child: Text(
-              days >= 0
-                  ? '距离${_event.name}还有'
-                  : '${_event.name}已经',
+              days == 0
+                  ? '${_event.name}就是今天'
+                  : days > 0
+                      ? '距离${_event.name}还有'
+                      : '${_event.name}已经',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: _contrastTextColor(headerColor),
                 fontWeight: FontWeight.w600,
@@ -411,6 +421,17 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         : const Color(0xFFFFFFFF);
   }
 
+  // ---- 桌面小组件 ----
+
+  Future<void> _addToWidget() async {
+    await WidgetService().updateWidget(_event);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已更新桌面小组件')),
+      );
+    }
+  }
+
   // ---- 样式选择 ----
 
   void _showStylePicker(BuildContext context, List<CardStyle> styles) {
@@ -498,6 +519,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                         s.gradientColors!.length >= 2;
                     return GestureDetector(
                       onTap: () {
+                        HapticFeedback.selectionClick();
                         _updateEventStyle(s.id!);
                         Navigator.pop(ctx);
                       },
@@ -696,6 +718,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                     label: Text(f.name),
                     selected: selected,
                     onSelected: (_) {
+                      HapticFeedback.selectionClick();
                       setState(() => _selectedFontIndex = i);
                       Navigator.pop(ctx);
                     },

@@ -47,6 +47,17 @@ void main() {
       expect(find.text('距离妈妈生日还有'), findsOneWidget);
     });
 
+    testWidgets('当天事件显示就是今天', (tester) async {
+      final todayEvent = createEvent(
+        name: '今天的事',
+        targetDate: DateTime(now.year, now.month, now.day),
+      );
+      await tester.pumpWidget(wrapWithMaterial(
+        EventDetailScreen(event: todayEvent),
+      ));
+      expect(find.text('今天的事就是今天'), findsOneWidget);
+    });
+
     testWidgets('过去事件显示已过', (tester) async {
       final event = createEvent(
         name: '过去事件',

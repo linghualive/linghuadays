@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/card_style.dart';
@@ -578,7 +579,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         reminderHour: () => reminderH,
         reminderMinute: () => reminderM,
       );
-      ref.read(eventsProvider.notifier).updateEvent(updated);
+      await ref.read(eventsProvider.notifier).updateEvent(updated);
     } else {
       final event = Event(
         name: _nameController.text.trim(),
@@ -600,10 +601,16 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
         reminderHour: reminderH,
         reminderMinute: reminderM,
       );
-      ref.read(eventsProvider.notifier).addEvent(event);
+      await ref.read(eventsProvider.notifier).addEvent(event);
     }
 
-    if (mounted) Navigator.pop(context);
+    if (mounted) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_isEditMode ? '已更新' : '已创建')),
+      );
+      Navigator.pop(context);
+    }
   }
 
   int? _getDefaultStyleId() {
