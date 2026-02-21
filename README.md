@@ -70,6 +70,10 @@ flutter run
 flutter build apk --release
 ```
 
+## 交流频道
+
+QQ 频道：[https://pd.qq.com/s/7jeytjyww](https://pd.qq.com/s/7jeytjyww?b=9)
+
 ## 赞赏
 
 如果觉得这个项目对你有帮助，欢迎请我喝杯咖啡 :)
