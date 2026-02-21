@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/card_style.dart';
 import '../models/category.dart';
@@ -194,6 +195,20 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
               error: (_, __) => const Text('加载样式失败'),
             ),
             const SizedBox(height: 32),
+
+            // 删除按钮（仅编辑模式）
+            if (_isEditMode) ...[
+              OutlinedButton.icon(
+                onPressed: _onDelete,
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('删除此倒数日'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                  side: BorderSide(color: theme.colorScheme.error),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
           ],
         ),
       ),
@@ -539,6 +554,41 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     );
   }
 
+  Future<void> _onDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除「${widget.event!.name}」吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      HapticFeedback.heavyImpact();
+      await ref.read(eventsProvider.notifier).deleteEvent(widget.event!.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('已删除「${widget.event!.name}」')),
+        );
+        context.go('/');
+      }
+    }
+  }
+
   Future<void> _onSave() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -558,50 +608,54 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
     final int? reminderH = _enableReminder ? _reminderHour : null;
     final int? reminderM = _enableReminder ? _reminderMinute : null;
 
-    if (_isEditMode) {
-      final updated = widget.event!.copyWith(
-        name: _nameController.text.trim(),
-        targetDate: _solarDate!,
-        calendarType: _calendarType,
-        lunarYear: () => _lunarYear,
-        lunarMonth: () => _lunarMonth,
-        lunarDay: () => _lunarDay,
-        isLeapMonth: _isLeapMonth,
-        categoryId: () => _categoryId,
-        note: () =>
-            _noteController.text.trim().isEmpty
-                ? null
-                : _noteController.text.trim(),
-        isRepeating: _isRepeating,
-        styleId: () => effectiveStyleId,
-        updatedAt: now,
-        reminderDaysBefore: () => reminderDays,
-        reminderHour: () => reminderH,
-        reminderMinute: () => reminderM,
-      );
-      await ref.read(eventsProvider.notifier).updateEvent(updated);
-    } else {
-      final event = Event(
-        name: _nameController.text.trim(),
-        targetDate: _solarDate!,
-        calendarType: _calendarType,
-        lunarYear: _lunarYear,
-        lunarMonth: _lunarMonth,
-        lunarDay: _lunarDay,
-        isLeapMonth: _isLeapMonth,
-        categoryId: _categoryId,
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-        isRepeating: _isRepeating,
-        styleId: effectiveStyleId,
-        createdAt: now,
-        updatedAt: now,
-        reminderDaysBefore: reminderDays,
-        reminderHour: reminderH,
-        reminderMinute: reminderM,
-      );
-      await ref.read(eventsProvider.notifier).addEvent(event);
+    try {
+      if (_isEditMode) {
+        final updated = widget.event!.copyWith(
+          name: _nameController.text.trim(),
+          targetDate: _solarDate!,
+          calendarType: _calendarType,
+          lunarYear: () => _lunarYear,
+          lunarMonth: () => _lunarMonth,
+          lunarDay: () => _lunarDay,
+          isLeapMonth: _isLeapMonth,
+          categoryId: () => _categoryId,
+          note: () =>
+              _noteController.text.trim().isEmpty
+                  ? null
+                  : _noteController.text.trim(),
+          isRepeating: _isRepeating,
+          styleId: () => effectiveStyleId,
+          updatedAt: now,
+          reminderDaysBefore: () => reminderDays,
+          reminderHour: () => reminderH,
+          reminderMinute: () => reminderM,
+        );
+        await ref.read(eventsProvider.notifier).updateEvent(updated);
+      } else {
+        final event = Event(
+          name: _nameController.text.trim(),
+          targetDate: _solarDate!,
+          calendarType: _calendarType,
+          lunarYear: _lunarYear,
+          lunarMonth: _lunarMonth,
+          lunarDay: _lunarDay,
+          isLeapMonth: _isLeapMonth,
+          categoryId: _categoryId,
+          note: _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+          isRepeating: _isRepeating,
+          styleId: effectiveStyleId,
+          createdAt: now,
+          updatedAt: now,
+          reminderDaysBefore: reminderDays,
+          reminderHour: reminderH,
+          reminderMinute: reminderM,
+        );
+        await ref.read(eventsProvider.notifier).addEvent(event);
+      }
+    } catch (_) {
+      // 即使通知或小组件同步失败，数据已保存，仍然返回
     }
 
     if (mounted) {
@@ -609,7 +663,7 @@ class _EventFormScreenState extends ConsumerState<EventFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_isEditMode ? '已更新' : '已创建')),
       );
-      Navigator.pop(context);
+      context.pop();
     }
   }
 

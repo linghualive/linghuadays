@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -206,17 +205,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return Dismissible(
                   key: ValueKey(event.id),
                   direction: DismissDirection.endToStart,
-                  confirmDismiss: (_) => _confirmDismiss(event),
+                  confirmDismiss: (_) async {
+                    _onEventEdit(event);
+                    return false;
+                  },
                   background: Container(
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 24),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.error,
+                      color: theme.colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(
-                      Icons.delete_outline,
-                      color: Colors.white,
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: theme.colorScheme.onPrimaryContainer,
                     ),
                   ),
                   child: EventCard(
@@ -224,7 +226,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     style: _findStyle(event.styleId, styles),
                     category: _findCategory(event.categoryId, categories),
                     onTap: () => _onEventTap(event),
-                    onLongPress: () => _showContextMenu(context, event),
+                    onLongPress: () => _onEventEdit(event),
                   ),
                 );
               },
@@ -264,7 +266,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   category: _findCategory(event.categoryId, categories),
                   isGridCard: true,
                   onTap: () => _onEventTap(event),
-                  onLongPress: () => _showContextMenu(context, event),
+                  onLongPress: () => _onEventEdit(event),
                 );
               },
               childCount: events.length,
@@ -383,93 +385,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  Future<bool> _confirmDismiss(Event event) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除「${event.name}」吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      HapticFeedback.heavyImpact();
-      await ref.read(eventsProvider.notifier).deleteEvent(event.id!);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已删除「${event.name}」')),
-        );
-      }
-      return true;
-    }
-    return false;
-  }
-
-  void _showContextMenu(BuildContext context, Event event) {
-    HapticFeedback.selectionClick();
-    final theme = Theme.of(context);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('编辑'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                await context.pushNamed('editEvent', extra: event);
-                ref.invalidate(eventsProvider);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                event.isPinned
-                    ? Icons.push_pin
-                    : Icons.push_pin_outlined,
-              ),
-              title: Text(event.isPinned ? '取消置顶' : '置顶'),
-              onTap: () async {
-                Navigator.pop(ctx);
-                HapticFeedback.lightImpact();
-                await ref
-                    .read(eventsProvider.notifier)
-                    .togglePin(event.id!);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: theme.colorScheme.error,
-              ),
-              title: Text(
-                '删除',
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _confirmDismiss(event);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  void _onEventEdit(Event event) async {
+    await context.pushNamed('editEvent', extra: event);
+    ref.invalidate(eventsProvider);
   }
 
 }

@@ -47,10 +47,12 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     final repo = ref.read(eventRepositoryProvider);
     final id = await repo.insert(event);
     // Schedule notification for the newly created event
-    if (event.reminderDaysBefore != null) {
-      final saved = event.copyWith(id: id);
-      await NotificationService().scheduleForEvent(saved);
-    }
+    try {
+      if (event.reminderDaysBefore != null) {
+        final saved = event.copyWith(id: id);
+        await NotificationService().scheduleForEvent(saved);
+      }
+    } catch (_) {}
     ref.invalidateSelf();
   }
 
@@ -58,25 +60,29 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
     final repo = ref.read(eventRepositoryProvider);
     await repo.update(event);
     // Re-schedule or cancel notification
-    if (event.id != null) {
-      await NotificationService().cancelForEvent(event.id!);
-      if (event.reminderDaysBefore != null) {
-        await NotificationService().scheduleForEvent(event);
+    try {
+      if (event.id != null) {
+        await NotificationService().cancelForEvent(event.id!);
+        if (event.reminderDaysBefore != null) {
+          await NotificationService().scheduleForEvent(event);
+        }
       }
-    }
+    } catch (_) {}
     ref.invalidateSelf();
   }
 
   Future<void> deleteEvent(int id) async {
     final repo = ref.read(eventRepositoryProvider);
     await repo.delete(id);
-    await NotificationService().cancelForEvent(id);
+    try {
+      await NotificationService().cancelForEvent(id);
+    } catch (_) {}
     // 直接过滤本地状态实现即时 UI 响应
     state = AsyncData(
       state.valueOrNull?.where((e) => e.id != id).toList() ?? [],
     );
     // 从数据库重新加载最新数据，确保列表完全一致
-    state = AsyncData(await build());
+    ref.invalidateSelf();
   }
 
   Future<void> deleteMultiple(List<int> ids) async {
@@ -99,8 +105,10 @@ class EventsNotifier extends AsyncNotifier<List<Event>> {
   }
 
   void _syncWidget(List<Event> events) {
-    _widgetService.saveAllEvents(events);
-    _widgetService.refreshWidget();
+    try {
+      _widgetService.saveAllEvents(events);
+      _widgetService.refreshWidget();
+    } catch (_) {}
   }
 }
 
