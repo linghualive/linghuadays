@@ -8,10 +8,14 @@
 ![GitHub repo size](https://img.shields.io/github/repo-size/linghualive/linghuadays)
 ![GitHub Repo stars](https://img.shields.io/github/stars/linghualive/linghuadays)
 ![GitHub all releases](https://img.shields.io/github/downloads/linghualive/linghuadays/total)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL%20v3-blue)](LICENSE)
 
 <p>使用 Flutter 开发的本地倒数日应用，支持公历和农历日期，帮助你管理和追踪重要日期</p>
 
+<img src="docs/preview/list.png" width="30%" alt="列表布局" />
+<img src="docs/preview/grid.png" width="30%" alt="网格布局" />
+<img src="docs/preview/detail.png" width="30%" alt="详情页" />
+<br/>
 </div>
 
 ## 功能
@@ -74,4 +78,4 @@ flutter build apk --release
 
 ## 开源协议
 
-本项目基于 [MIT](LICENSE) 协议开源。
+本项目基于 [GPL-3.0](LICENSE) 协议开源。
